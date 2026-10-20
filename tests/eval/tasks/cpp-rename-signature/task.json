@@ -1,0 +1,38 @@
+{
+  "id": "cpp-rename-signature",
+  "title": "함수 이름·시그니처 변경과 사용처 수정",
+  "language": "cpp",
+  "prompt": "pricing.cpp의 `calc_cost(int units)`는 단가 250을 내부 상수로 고정해 쓴다. 이 함수 이름을 `compute_cost`로 바꾸고 `int unit_price` 매개변수를 추가해 `compute_cost(int units, int unit_price)`로 만들어라. 호출하는 모든 곳(billing.cpp, report.cpp)은 단가 250을 넘기도록 고치고 동작은 그대로 유지해라. test.cpp는 수정하지 마라.",
+  "judge": [
+    {
+      "name": "build",
+      "cmd": "{cxx} -std=c++17 -Wall -o check{exe} pricing.cpp billing.cpp report.cpp test.cpp"
+    },
+    {
+      "name": "test",
+      "cmd": ".{sep}check{exe}"
+    }
+  ],
+  "expect": [
+    {
+      "file": "pricing.h",
+      "notContains": "calc_cost"
+    },
+    {
+      "file": "pricing.cpp",
+      "notContains": "calc_cost"
+    },
+    {
+      "file": "billing.cpp",
+      "notContains": "calc_cost"
+    },
+    {
+      "file": "report.cpp",
+      "notContains": "calc_cost"
+    }
+  ],
+  "budget": {
+    "timeoutSec": 420,
+    "maxTurns": 30
+  }
+}

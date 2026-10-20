@@ -1,0 +1,20 @@
+{
+  "id": "cpp-fix-build-error",
+  "title": "여러 개의 빌드 오류 수정",
+  "language": "cpp",
+  "prompt": "parser.cpp가 컴파일되지 않는다. 컴파일러를 실행해 오류를 확인하고 모두 고쳐라. 기능은 바꾸지 말고 check.cpp는 수정하지 마라.",
+  "judge": [
+    {
+      "name": "build",
+      "cmd": "{cxx} -std=c++17 -Wall -o check{exe} parser.cpp check.cpp"
+    },
+    {
+      "name": "test",
+      "cmd": ".{sep}check{exe}"
+    }
+  ],
+  "budget": {
+    "timeoutSec": 300,
+    "maxTurns": 20
+  }
+}

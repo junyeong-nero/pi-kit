@@ -1,0 +1,5 @@
+{
+  "defaultTools": ["read", "powershell", "edit", "write", "grep", "find", "ls"],
+  "packages": [".."],
+  "tuiMode": "regular"
+}

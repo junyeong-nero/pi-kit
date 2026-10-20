@@ -1,0 +1,18 @@
+{
+  "servers": {
+    "cpp": {
+      "command": "${bundle}/bin/clangd/bin/clangd.exe",
+      "args": ["--background-index", "--log=error"],
+      "initializeTimeoutMs": 120000,
+      "diagnosticsTimeoutMs": 60000
+    },
+    "csharp": {
+      "command": "${bundle}/runtime/dotnet/dotnet.exe",
+      "args": ["${bundle}/bin/csharp-ls/CSharpLanguageServer.dll"],
+      "initializeTimeoutMs": 120000,
+      "requestTimeoutMs": 120000,
+      "diagnosticsTimeoutMs": 120000,
+      "settings": { "csharp": { "useMetadataUris": false } }
+    }
+  }
+}

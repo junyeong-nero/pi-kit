@@ -1,0 +1,77 @@
+{
+  "platform": "win-x64",
+  "artifacts": {
+    "node": {
+      "version": "22.23.3",
+      "url": "https://nodejs.org/dist/v22.23.3/node-v22.23.3-win-x64.zip",
+      "sha256": "2b0ff57b049cda1bbcea2240eec20467018713c1efe1f7360c2681859b90ed71",
+      "prefix": "node-v22.23.3-win-x64/",
+      "destination": "runtime/node"
+    },
+    "python": {
+      "version": "3.13.16",
+      "url": "https://www.python.org/ftp/python/3.13.16/python-3.13.16-embed-amd64.zip",
+      "sha256": "97dae5274cc54867065e8d5a3226e48c35017ed332a0fdb0e27d5b5821961297",
+      "prefix": "",
+      "destination": "runtime/python"
+    },
+    "redis": {
+      "version": "7.2.16",
+      "url": "https://github.com/redis-windows/redis-windows/releases/download/7.2.16/Redis-7.2.16-Windows-x64-msys2-with-Service.zip",
+      "sha256": "91e663e401a3945831c3674fd63aa979ff7a5498b34939044ddd258896891381",
+      "prefix": "Redis-7.2.16-Windows-x64-msys2-with-Service/",
+      "destination": "bin/redis"
+    },
+    "svn": {
+      "version": "1.15.0",
+      "url": "https://www.visualsvn.com/files/Apache-Subversion-1.15.0-x64.zip",
+      "sha256": "98bb798dd6c70cc875b9bdacd600594351cf88f0a39a831a5055df061c871bb5",
+      "prefix": "",
+      "destination": "bin/svn"
+    },
+    "pi": {
+      "version": "1.3.0",
+      "url": "https://github.com/earendil-works/pi/releases/download/v1.3.0/pi-windows-x64.zip",
+      "sha256": "daf0ef45fd08f13dbb64c62d559e332c2d3d3087f8ae022ec5a1b9b655b59894",
+      "prefix": "",
+      "destination": "bin/pi"
+    },
+    "clangd": {
+      "version": "22.1.6",
+      "url": "https://github.com/clangd/clangd/releases/download/22.1.6/clangd-windows-22.1.6.zip",
+      "sha256": "ce54f16e0b4fd76d450eeda9664420b195360b73febcfe40e661108fa57f2ce1",
+      "prefix": "clangd_22.1.6/",
+      "destination": "bin/clangd"
+    },
+    "dotnet": {
+      "version": "10.0.401",
+      "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.401/dotnet-sdk-10.0.401-win-x64.zip",
+      "sha512": "24b670ad3d923bfcf47df6c3b034152398b42f6dbc388e10d783aee1cfb5e5817d399fc0ae2a12cfa822a55e61d34830ccb15c50ef6efee437ab874bb7c79430",
+      "prefix": "",
+      "destination": "runtime/dotnet"
+    },
+    "csharp-ls": {
+      "version": "0.28.0",
+      "url": "https://api.nuget.org/v3-flatcontainer/csharp-ls/0.28.0/csharp-ls.0.28.0.nupkg",
+      "sha256": "8f815e4f22674106a8244beba07e4b4b062e31528e404aa8489312effb8c0e0c",
+      "prefix": "tools/net10.0/any/",
+      "destination": "bin/csharp-ls"
+    },
+    "fd": {
+      "version": "10.5.0",
+      "url": "https://github.com/sharkdp/fd/releases/download/v10.5.0/fd-v10.5.0-x86_64-pc-windows-msvc.zip",
+      "sha256": "a227701b8551c35a9931d9f6da75503cf86d88e182d71fb849a70864c5d57cd7",
+      "prefix": "fd-v10.5.0-x86_64-pc-windows-msvc/",
+      "destination": "bin/fd.exe",
+      "file": "fd.exe"
+    },
+    "rg": {
+      "version": "15.2.0",
+      "url": "https://github.com/BurntSushi/ripgrep/releases/download/15.2.0/ripgrep-15.2.0-x86_64-pc-windows-msvc.zip",
+      "sha256": "71b2fef860abe467217a538ff31de02f5258807c0129f771846f87bd029aafc5",
+      "prefix": "ripgrep-15.2.0-x86_64-pc-windows-msvc/",
+      "destination": "bin/rg.exe",
+      "file": "rg.exe"
+    }
+  }
+}

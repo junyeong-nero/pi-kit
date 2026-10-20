@@ -1,0 +1,16 @@
+{
+  "port": 6379,
+  "db": 0,
+  "timezone": "Asia/Seoul",
+  "username_env": "HSC_REDIS_USERNAME",
+  "password_env": "REDISCLI_AUTH",
+  "tls": false,
+  "ca_file": null,
+  "connect_timeout_seconds": 5,
+  "socket_timeout_seconds": 10,
+  "max_connections": 4,
+  "batch_size": 100,
+  "index_ttl_seconds": 30,
+  "max_scan_keys": 50000,
+  "max_scan_seconds": 30
+}

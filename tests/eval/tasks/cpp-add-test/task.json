@@ -1,0 +1,33 @@
+{
+  "id": "cpp-add-test",
+  "title": "IntStack 단위 테스트 작성",
+  "language": "cpp",
+  "prompt": "stack.h의 IntStack에 대한 테스트를 test_stack.cpp에 작성해라. assert를 3개 이상 사용하고 (1) push한 역순으로 pop되는지 (2) empty/size가 맞는지 (3) 빈 스택에서 pop하면 std::out_of_range가 발생하는지를 확인해야 한다. stack.h는 수정하지 마라. 테스트는 성공 시 0으로 종료해야 한다.",
+  "judge": [
+    {
+      "name": "build",
+      "cmd": "{cxx} -std=c++17 -Wall -o check{exe} test_stack.cpp"
+    },
+    {
+      "name": "test",
+      "cmd": ".{sep}check{exe}"
+    },
+    {
+      "name": "mutant-detected",
+      "cmd": "{cxx} -std=c++17 -o mutant{exe} test_stack.cpp && .{sep}mutant{exe}",
+      "overlay": "judge-mutant",
+      "expectFail": true
+    }
+  ],
+  "expect": [
+    {
+      "file": "test_stack.cpp",
+      "regex": "assert\\s*\\(",
+      "minMatches": 3
+    }
+  ],
+  "budget": {
+    "timeoutSec": 300,
+    "maxTurns": 20
+  }
+}

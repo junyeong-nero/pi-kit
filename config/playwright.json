@@ -1,0 +1,17 @@
+{
+  "browser": {
+    "browserName": "chromium",
+    "cdpEndpoint": "msedge",
+    "cdpTimeout": 10000
+  },
+  "capabilities": ["core", "core-navigation", "core-tabs", "core-input"],
+  "webmcp": false,
+  "saveSession": false,
+  "imageResponses": "omit",
+  "filePaths": "absolute",
+  "codegen": "none",
+  "timeouts": {
+    "action": 5000,
+    "navigation": 30000
+  }
+}

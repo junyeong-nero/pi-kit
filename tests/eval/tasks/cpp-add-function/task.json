@@ -1,0 +1,30 @@
+{
+  "id": "cpp-add-function",
+  "title": "통계 라이브러리에 mean 함수 추가",
+  "language": "cpp",
+  "prompt": "stats.h / stats.cpp에 `double mean(const std::vector<int>& values)` 함수를 추가해라. 값들의 평균을 반환하고, 빈 벡터면 0.0을 반환한다. 기존 total 함수와 같은 스타일로 작성하고 test.cpp는 수정하지 마라.",
+  "judge": [
+    {
+      "name": "build",
+      "cmd": "{cxx} -std=c++17 -Wall -o check{exe} stats.cpp test.cpp"
+    },
+    {
+      "name": "test",
+      "cmd": ".{sep}check{exe}"
+    }
+  ],
+  "expect": [
+    {
+      "file": "stats.h",
+      "contains": "mean"
+    },
+    {
+      "file": "stats.cpp",
+      "contains": "mean"
+    }
+  ],
+  "budget": {
+    "timeoutSec": 300,
+    "maxTurns": 20
+  }
+}

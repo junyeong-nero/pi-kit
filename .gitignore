@@ -1,0 +1,51 @@
+# 실행 로그 — 커밋하지 않음
+*.log
+
+# 로컬 테스트용 바이너리 (mac에서 스모크 테스트할 때만 만듦)
+/cpp-csharp-lsp-lite-mac
+/cpp-csharp-lsp-lite
+
+# 사내 API 주소가 들어가는 실제 설정 — config/models.example.json 을 복사해서 채운다
+/models.json
+/config/models.json
+
+# config/ 는 pi 설정 폴더(PI_CODING_AGENT_DIR)라 pi가 실행 중에 만드는 파일 — 커밋·배포하지 않음
+/config/auth.json
+/config/sessions/
+/config/pi-lens/
+/config/playwright-mcp/
+/config/bin/
+/config/agents/
+/config/missions/
+/config/agent-memory/
+/config/extensions/subagent/*
+!/config/extensions/subagent/config.json
+/config/*.bak
+/config/*.log
+/config/redis/server_IP_mappings.json
+/config/redis/owners.json
+/config/redis/cache/
+
+# 로컬 테스트가 만드는 pi 설정 폴더 (PI_CODING_AGENT_DIR: 세션, 설정)
+/agent/
+
+# Downloaded distributions are build outputs, not source files.
+/bin/
+/cpp-csharp-lsp-lite.exe
+/runtime/
+/.cache/
+/dist/
+/node_modules/
+/vendor/extensions/
+__pycache__/
+*.pyc
+/tests/fixtures/csharp/obj/
+/tests/fixtures/csharp/bin/
+
+# Legacy local build outputs
+/harness-lsp
+/harness-lsp-mac
+/harness-lsp.exe
+
+# 평가 러너 결과 (tests/eval)
+/tests/eval/results/

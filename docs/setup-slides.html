@@ -1,0 +1,1041 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>폐쇄망 코딩 에이전트: pi harness + LSP</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%228%22 fill=%22%23ff6f0f%22/%3E%3C/svg%3E">
+<!--
+  폐쇄망 코딩 에이전트: pi harness + LSP 슬라이드. 폐쇄망에서도 열리도록 외부 폰트·CDN 없이 이 파일 하나로 동작한다.
+  디자인 기준: docs/DESIGN.md (Karrot SEED 팔레트 참고).
+  조작: ← → / Space / PageUp PageDown / Home End, 화면 왼쪽·오른쪽 클릭. F 전체화면. 인쇄하면 슬라이드당 한 장.
+-->
+<style>
+  :root {
+    --primary: #ff6f0f;
+    --primary-hover: #ff9e66;
+    --tint: #fff5f0;
+    --canvas: #ffffff;
+    --bg: #f2f3f6;
+    --surface: #f7f8fa;
+    --fg: #212124;
+    --muted: #868b94;
+    --hairline: #eaebee;
+    --danger: #fa2314;
+    --info: #009ceb;
+    --success: #1aa174;
+    --code-bg: #212124;
+    --code-fg: #eaebee;
+    --font: -apple-system, BlinkMacSystemFont, "Pretendard Variable", "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", sans-serif;
+    --mono: Consolas, "D2Coding", "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* 1280x720 무대를 창 크기에 맞춰 축소·확대 */
+  .viewport { position: fixed; inset: 0; display: grid; place-items: center; }
+  .stage { width: 1280px; height: 720px; position: relative; transform-origin: center center; }
+  .slide {
+    position: absolute; inset: 0;
+    background: var(--canvas);
+    border-radius: 24px;
+    padding: 64px 80px 56px;
+    display: flex; flex-direction: column;
+    opacity: 0; visibility: hidden;
+    transition: opacity 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .slide.active { opacity: 1; visibility: visible; }
+
+  /* 타이포 (SEED 역할 기준: 48 / 34 / 24 / 16) */
+  .eyebrow { font-size: 16px; font-weight: 700; color: var(--primary); margin-bottom: 12px; letter-spacing: 0; }
+  h1 { font-size: 56px; font-weight: 700; line-height: 1.3; letter-spacing: -0.01em; }
+  h2 { font-size: 40px; font-weight: 700; line-height: 1.35; margin-bottom: 32px; letter-spacing: -0.01em; }
+  h3 { font-size: 20px; font-weight: 700; line-height: 1.4; margin-bottom: 8px; }
+  p, li { font-size: 20px; line-height: 1.6; letter-spacing: -0.02em; }
+  .lead { font-size: 24px; color: var(--muted); line-height: 1.5; margin-top: 16px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 16px; }
+  code { font-family: var(--mono); font-size: 0.9em; background: var(--surface); border: 1px solid var(--hairline); border-radius: 6px; padding: 1px 6px; }
+  strong { font-weight: 700; }
+
+  .body { flex: 1; display: flex; flex-direction: column; gap: 24px; min-height: 0; }
+  .body > * { flex-shrink: 0; }  /* 코드 블록이 눌려 줄이 잘리지 않게 */
+  .row { display: flex; gap: 24px; }
+  .row > * { flex: 1; min-width: 0; }
+
+  /* 카드: 그림자 없이 면 색과 헤어라인으로만 구분 */
+  .card { background: var(--surface); border-radius: 16px; padding: 24px; }
+  .card.line { background: var(--canvas); border: 1px solid var(--hairline); }
+  .card.tint { background: var(--tint); }
+  .card p, .card li { font-size: 18px; }
+  .card ul { padding-left: 20px; }
+  .card li + li { margin-top: 4px; }
+
+  /* 코드 블록 */
+  pre {
+    background: var(--code-bg); color: var(--code-fg);
+    font-family: var(--mono); font-size: 18px; line-height: 1.6;
+    border-radius: 16px; padding: 20px 24px;
+    white-space: pre; overflow: hidden;
+  }
+  pre .c { color: var(--muted); }
+  pre .p { color: var(--primary-hover); }
+  pre .s { color: #9fd8c0; }
+
+  /* 단계 번호 배지 */
+  .step { display: inline-flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .step .num {
+    width: 40px; height: 40px; border-radius: 9999px;
+    background: var(--primary); color: #fff;
+    font-size: 20px; font-weight: 700;
+    display: grid; place-items: center;
+  }
+  .step .of { font-size: 16px; font-weight: 700; color: var(--muted); }
+
+  /* 표 */
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 12px 16px; font-size: 18px; line-height: 1.5; border-bottom: 1px solid var(--hairline); vertical-align: top; }
+  th { font-size: 16px; color: var(--muted); font-weight: 700; }
+  table.compact th, table.compact td { padding: 8px 16px; }
+  td code { white-space: nowrap; }
+
+  /* 계층 그림 */
+  .stack { display: flex; flex-direction: column; gap: 12px; }
+  .layer { display: flex; align-items: center; gap: 24px; border-radius: 16px; padding: 20px 24px; background: var(--surface); }
+  .layer .name { width: 200px; font-size: 22px; font-weight: 700; }
+  .layer .desc { font-size: 18px; color: var(--fg); }
+  .layer .tag { margin-left: auto; font-size: 14px; font-weight: 700; color: var(--muted); border: 1px solid var(--hairline); border-radius: 9999px; padding: 4px 12px; background: var(--canvas); }
+  .layer.hl { background: var(--tint); }
+  .layer.hl .tag { color: var(--primary); border-color: var(--primary-hover); }
+
+  /* 체크 목록 */
+  .checks { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+  .checks li { display: flex; gap: 12px; align-items: baseline; }
+  .checks li::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 9999px; background: var(--primary); transform: translateY(-3px); }
+
+  .callout { display: flex; gap: 12px; align-items: baseline; border-radius: 12px; padding: 16px 20px; background: var(--surface); font-size: 18px; line-height: 1.5; }
+  .callout b { flex: none; font-size: 14px; font-weight: 700; border-radius: 9999px; padding: 2px 10px; }
+  .callout.info b { background: #e5f5fd; color: #0077b8; }
+  .callout.warn b { background: #fff0ee; color: #d51a0e; }
+  .callout.ok b { background: #e7f6f0; color: #0d7a57; }
+
+  /* 표지 */
+  .cover { justify-content: space-between; background: var(--canvas); }
+  .cover .mark { width: 72px; height: 72px; border-radius: 20px; background: var(--primary); display: grid; place-items: center; color: #fff; font-size: 32px; font-weight: 700; font-family: var(--mono); }
+  .cover .meta { display: flex; gap: 12px; flex-wrap: wrap; }
+  .pill { font-size: 16px; font-weight: 700; border-radius: 9999px; padding: 8px 16px; background: var(--surface); color: var(--fg); }
+
+  /* 망 구분 표시와 절차 목록 */
+  .net { font-size: 16px; font-weight: 700; color: var(--muted); margin-bottom: 16px; }
+  .tag-net { font-size: 14px; font-weight: 700; color: var(--fg); background: var(--surface); border: 1px solid var(--hairline); border-radius: 9999px; padding: 4px 12px; }
+  .steps { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+  .steps li { display: flex; align-items: center; gap: 12px; font-size: 20px; }
+  .steps .n { flex: none; width: 32px; height: 32px; border-radius: 9999px; background: var(--canvas); border: 1px solid var(--hairline); display: grid; place-items: center; font-size: 16px; font-weight: 700; }
+
+  /* 하단 진행 표시 */
+  .foot { position: absolute; left: 80px; right: 80px; bottom: 24px; display: flex; justify-content: space-between; font-size: 14px; color: var(--muted); }
+  .progress { position: fixed; left: 0; bottom: 0; height: 4px; background: var(--primary); transition: width 250ms cubic-bezier(0.4, 0, 0.2, 1); }
+  .hint { position: fixed; right: 16px; bottom: 12px; font-size: 12px; color: var(--muted); }
+
+  @media print {
+    @page { size: 1280px 720px; margin: 0; }
+    body { overflow: visible; background: #fff; }
+    .viewport { position: static; display: block; }
+    .stage { transform: none !important; width: auto; height: auto; }
+    .slide { position: relative; opacity: 1; visibility: visible; width: 1280px; height: 720px; border-radius: 0; page-break-after: always; break-after: page; }
+    .progress, .hint { display: none; }
+  }
+
+  .muted, .lead, .foot { color: #626873; }
+  .thesis { font-size: 28px; font-weight: 700; line-height: 1.5; padding: 24px 28px; border-left: 4px solid var(--primary); background: var(--tint); border-radius: 0 12px 12px 0; }
+  .flow { display: flex; align-items: stretch; gap: 12px; }
+  .node { flex: 1; padding: 24px 20px; background: var(--surface); border: 1px solid var(--hairline); border-radius: 16px; min-width: 0; }
+  .node.focus { background: var(--tint); border-color: var(--primary-hover); }
+  .node .index { display: block; color: var(--primary); font: 700 16px var(--mono); margin-bottom: 16px; }
+  .node h3 { font-size: 22px; }
+  .node p { font-size: 17px; line-height: 1.55; }
+  .arrow { align-self: center; flex: none; color: var(--primary); font-size: 28px; }
+  .takeaway { margin-top: auto; font-size: 20px; font-weight: 700; line-height: 1.5; border-top: 1px solid var(--hairline); padding-top: 16px; }
+  .source { font-size: 13px; color: #626873; line-height: 1.5; }
+  a { color: inherit; text-underline-offset: 3px; }
+  a:hover { color: var(--primary); }
+  .body .source { margin-top: -12px; }
+  .metric { font-size: 36px; font-weight: 700; line-height: 1.2; margin-bottom: 12px; color: var(--primary); }
+  .label { display: inline-block; font-size: 13px; font-weight: 700; border-radius: 6px; padding: 3px 8px; background: var(--surface); }
+  .label.pass { background: #e7f6f0; color: #0d7a57; }
+  .label.pending { background: #fff5e5; color: #8b5900; }
+  .mini { font-size: 17px; line-height: 1.55; }
+  .body.tight { gap: 16px; }
+  .boundary { border: 1px dashed #b7bcc4; border-radius: 20px; padding: 20px; }
+  .boundary-label { font-size: 14px; font-weight: 700; color: #626873; margin-bottom: 12px; }
+  .loopback { text-align: center; padding: 14px; border-radius: 12px; background: var(--tint); font-size: 19px; font-weight: 700; }
+  .cover .lead { max-width: 1000px; }
+  .toc { display: flex; gap: 8px; margin-top: 24px; flex-wrap: wrap; }
+  .toc a { font-size: 16px; padding: 8px 12px; border-radius: 8px; background: var(--surface); text-decoration: none; }
+  .nav { position: fixed; left: 16px; bottom: 12px; display: flex; gap: 8px; }
+  .nav button { border: 1px solid #d4d7dc; border-radius: 8px; padding: 5px 12px; background: white; color: var(--fg); cursor: pointer; font: 14px var(--font); }
+  .nav button:focus-visible, a:focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }
+  @media print { .nav { display: none; } .slide:last-child { page-break-after: auto; break-after: auto; } }
+</style>
+</head>
+<body>
+<div class="viewport">
+<div class="stage" id="stage">
+
+<section class="slide cover" aria-label="1. 폐쇄망에서 코드 수정과 검증을 연결하기">
+<div class="eyebrow">ENGINEERING STUDY · 2026.09</div>
+<div>
+<div class="eyebrow">cpp-csharp-lsp-lite</div>
+<h1>폐쇄망에서<br>코드 수정과 검증을 연결하기</h1>
+<p class="lead">사내 LLM · pi 실행 환경 · C++ / C# 언어 서버를 결합한<br>코딩 에이전트의 설계와 검증</p>
+<div class="toc"><a href="#3">문제 배경</a><a href="#7">설계 선택</a><a href="#9">LSP</a><a href="#15">검증</a><a href="#19">설치 부록</a>
+</div>
+</div>
+<div class="meta"><span class="pill">Windows x64</span><span class="pill">사내 모델 API</span><span class="pill">오프라인 배포</span><span class="pill">pi 1.3.0</span>
+</div>
+<div class="foot"><span>기술 검토 및 구현 보고</span><span class="page"></span>
+</div>
+</section>
+
+<section class="slide" aria-label="2. 핵심 질문: AI가 고친 코드를 어떻게 확인할까?">
+<div class="eyebrow">01 · 문제 정의</div>
+<h2>핵심 질문: AI가 고친 코드를 어떻게 확인할까?</h2>
+<div class="body">
+<div class="thesis">폐쇄망에서도 프로젝트를 탐색하고 수정한 뒤,<br>언어 분석 결과를 다음 판단에 돌려줄 수 있을까?</div>
+<div class="flow">
+<div class="node focus"><span class="index">01</span>
+<h3>업무 제약</h3>
+<p>사내 API · Windows<br>C++ / C# 프로젝트</p>
+</div>
+<div class="arrow" aria-hidden="true">→</div>
+<div class="node "><span class="index">02</span>
+<h3>실행 환경</h3>
+<p>pi에 탐색·편집·분석<br>도구를 연결</p>
+</div>
+<div class="arrow" aria-hidden="true">→</div>
+<div class="node "><span class="index">03</span>
+<h3>검증과 도입</h3>
+<p>기능 검증 후<br>실제 업무 효과 측정</p>
+</div>
+</div>
+<p class="takeaway">발표 범위: 문제 → 대안의 한계 → 설계 → 구현 → 검증 → 남은 과제</p>
+</div>
+<div class="foot"><span>cpp-csharp-lsp-lite · 기술 검토 및 구현 · 2026.09</span><span class="page"></span>
+</div>
+</section>
+
+<section class="slide" aria-label="3. 도입 조건은 모델 연결보다 넓다">
+<div class="eyebrow">02 · 배경</div>
+<h2>도입 조건은 모델 연결보다 넓다</h2>
+<div class="body">
+<div class="row">
+<div class="card tint">
+<h3>네트워크와 배포</h3>
+<p>외부 다운로드가 제한된 환경.<br>실행 파일·의존성·분석 리소스를<br>반입 전에 준비해야 한다.</p>
+</div>
+<div class="card line">
+<h3>프로젝트 맥락</h3>
+<p>C++의 헤더·매크로·컴파일 옵션,<br>C#의 솔루션·SDK·패키지가<br>분석 결과를 좌우한다.</p>
+</div>
+<div class="card line">
+<h3>기존 업무와 연결</h3>
+<p>Windows 개발 PC에서 사용하고,<br>기존 IDE·빌드·테스트 절차와<br>함께 운영할 수 있어야 한다.</p>
+</div>
+</div>
+<div class="callout info"><b>대상 환경</b><span>외부 인터넷 없이 배포·실행하되, 모델 추론에는 사내 API 연결을 사용한다.</span>
+</div>
+<p class="takeaway">필요한 것은 모델 접속, 프로젝트 맥락, 배포 재현성을 함께 갖춘 작업 환경이다.</p>
+</div>
+<div class="foot"><span>cpp-csharp-lsp-lite · 기술 검토 및 구현 · 2026.09</span><span class="page"></span>
+</div>
+</section>
+
+<section class="slide" aria-label="4. 대화·검색·빌드만으로는 피드백이 끊긴다">
+<div class="eyebrow">03 · 기존 접근의 한계</div>
+<h2>대화·검색·빌드만으로는 피드백이 끊긴다</h2>
+<div class="body">
+<table>
+<thead>
+<tr>
+<th style="width:24%">비교할 접근</th>
+<th style="width:31%">제공하는 것</th>
+<th>이 과제에서 남는 연결 작업</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>웹 대화 + 코드 복사</td>
+<td>설명·수정안 생성</td>
+<td>관련 파일 선택, 패치 적용, 오류 전달을 사람이 수행</td>
+</tr>
+<tr>
+<td>파일 읽기 + 문자열 검색</td>
+<td>이름·텍스트 기반의 빠른 탐색</td>
+<td>동명이인 심볼, 타입, 실제 참조 관계를 추가 확인</td>
+</tr>
+<tr>
+<td>IDE에서 수동 확인</td>
+<td>편집 위치의 진단·탐색</td>
+<td>IDE의 분석 결과를 에이전트의 다음 판단에 전달</td>
+</tr>
+<tr>
+<td>수정 후 전체 빌드·테스트</td>
+<td>통합 상태와 실행 동작 검증</td>
+<td>작은 수정 단계에서도 활용할 언어 분석 피드백</td>
+</tr>
+</tbody>
+</table>
+<p class="takeaway">설계 목표: 탐색 → 수정 → 진단 → 재수정 사이의 전달 작업을 줄인다.</p>
+</div>
+<div class="foot"><span>cpp-csharp-lsp-lite · 기술 검토 및 구현 · 2026.09</span><span class="page"></span>
+</div>
+</section>
+
+<section class="slide" aria-label="5. 업무 제약을 네 가지 설계 기준으로 바꾼다">
+<div class="eyebrow">04 · 요구사항</div>
+<h2>업무 제약을 네 가지 설계 기준으로 바꾼다</h2>
+<div class="body">
+<table>
+<thead>
+<tr>
+<th>요구사항</th>
+<th>설계 대응</th>
+<th>확인 기준</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>사내 모델 사용</td>
+<td>OpenAI-compatible API 설정</td>
+<td>등록된 provider/model로 도구 호출·응답</td>
+</tr>
+<tr>
+<td>폐쇄망 재배포</td>
+<td>버전·해시 고정, 런타임과 의존성 동봉</td>
+<td>외부 설치 없이 재배치한 ZIP에서 실행</td>
+</tr>
+<tr>
+<td>프로젝트 기반 피드백</td>
+<td>clangd / csharp-ls를 LSP로 연결</td>
+<td>정의·참조·타입·진단 결과 조회</td>
+</tr>
+<tr>
+<td>변경 후 확인</td>
+<td>edit/write 결과에 진단 첨부</td>
+<td>오류 발생과 수정 후 진단 변화 확인</td>
+</tr>
+</tbody>
+</table>
+<p class="takeaway">도구 선택은 이 요구사항을 충족하기 위한 설계 판단이다.</p>
+</div>
+<div class="foot"><span>cpp-csharp-lsp-lite · 기술 검토 및 구현 · 2026.09</span><span class="page"></span>
+</div>
+</section>
+
+<section class="slide" aria-label="6. Harness는 모델이 일하는 실행 환경이다">
+<div class="eyebrow">05 · 개념 정리</div>
+<h2>Harness는 모델이 일하는 실행 환경이다</h2>
+<div class="body">
+<div class="flow">
+<div class="node focus"><span class="index">01</span>
+<h3>모델</h3>
+<p>맥락을 읽고<br>다음 행동을 선택</p>
+</div>
+<div class="arrow" aria-hidden="true">→</div>
+<div class="node "><span class="index">02</span>
+<h3>pi harness</h3>
+<p>세션·도구 호출·결과 전달<br>확장 이벤트 처리</p>
+</div>
+<div class="arrow" aria-hidden="true">→</div>
+<div class="node "><span class="index">03</span>
+<h3>개발 환경</h3>
+<p>파일·명령 실행<br>언어 서버·빌드·테스트</p>
+</div>
+</div>
+<div class="row">
+<div class="card tint">
+<h3>모델의 역할</h3>
+<p>수정 방안을 제안하고 필요한 도구를 선택한다.</p>
+</div>
+<div class="card line">
+<h3>Harness의 역할</h3>
+<p>선택한 도구를 실행하고 관찰 결과를 모델에 되돌린다.</p>
+</div>
+</div>
+<p class="takeaway">모델을 바꾸는 문제와, 모델에 어떤 도구·피드백을 제공할지는 분리해서 설계한다.</p>
+</div>
+<div class="foot"><span>cpp-csharp-lsp-lite · 기술 검토 및 구현 · 2026.09</span><span class="page"></span>
+</div>
+</section>
+
+<section class="slide" aria-label="7. 왜 pi를 기반으로 구성했는가?">
+<div class="eyebrow">06 · 선택 근거</div>
+<h2>왜 pi를 기반으로 구성했는가?</h2>
+<div class="body">
+<table>
+<thead>
+<tr>
+<th style="width:25%">이 과제의 기준</th>
+<th style="width:42%">pi에서 활용한 특성</th>
+<th>구현 근거</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>사내 API 연결</td>
+<td>provider·baseUrl·모델을 설정으로 지정</td>
+<td><code>config/models.example.json</code>
+</td>
+</tr>
+<tr>
+<td>도구와 피드백 확장</td>
+<td>TypeScript 도구 등록·편집 결과 이벤트</td>
+<td><code>extensions/cpp-csharp-lsp-lite/index.ts</code>
+</td>
+</tr>
+<tr>
+<td>Windows 배포</td>
+<td>공식 standalone 실행 파일과 리소스 동봉</td>
+<td><code>bin/pi/</code>
+</td>
+</tr>
+<tr>
+<td>필요 기능 추가</td>
+<td>배포 폴더를 pi 패키지로 로드</td>
+<td><code>package.json</code> · <code>config/settings.json</code>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="source">근거: 동봉 pi 1.3.0 문서 및 현재 저장소 구현. 제품 간 성능 비교 실험은 수행하지 않음.</p>
+<p class="takeaway">선택의 대가: 확장 API 호환성과 Windows 동작은 배포자가 계속 검증해야 한다.</p>
+</div>
+<div class="foot"><span>cpp-csharp-lsp-lite · 기술 검토 및 구현 · 2026.09</span><span class="page"></span>
+</div>
+</section>
+
+<section class="slide" aria-label="8. 사내 추론과 로컬 분석을 하나의 작업 흐름으로">
+<div class="eyebrow">07 · 제안 구조</div>
+<h2>사내 추론과 로컬 분석을 하나의 작업 흐름으로</h2>
+<div class="body">
+<div class="boundary">
+<div class="boundary-label">사내망 · 모델 서비스</div>
+<div class="layer hl"><span class="name">사내 LLM API</span><span class="desc">전달받은 맥락으로 응답·도구 호출 생성</span><span class="tag">모델 추론</span>
+</div>
+</div>
+<div class="loopback">↑ 프롬프트·도구 결과 &nbsp;&nbsp; / &nbsp;&nbsp; ↓ 응답·도구 호출</div>
+<div class="boundary">
+<div class="boundary-label">Windows 개발 PC · 배포 ZIP + 대상 프로젝트</div>
+<div class="flow">
+<div class="node focus">
+<h3>pi + extensions</h3>
+<p>세션과 편집 흐름<br>도구 실행·진단 첨부</p>
+</div>
+<div class="arrow">↔</div>
+<div class="node">
+<h3>LSP client</h3>
+<p>언어·프로젝트 루트별 연결<br>stdio JSON-RPC</p>
+</div>
+<div class="arrow">↔</div>
+<div class="node">
+<h3>언어 서버</h3>
+<p>C++: clangd<br>C#: csharp-ls + .NET</p>
+</div>
+</div>
+</div>
+</div>
+<div class="foot"><span>cpp-csharp-lsp-lite · 기술 검토 및 구현 · 2026.09</span><span class="page"></span>
+</div>
+</section>
+
+<section class="slide" aria-label="9. LSP: 언어 분석 기능을 호출하는 공통 규약">
+<div class="eyebrow">08 · LSP 기초</div>
+<h2>LSP: 언어 분석 기능을 호출하는 공통 규약</h2>
+<div class="body">
+<p class="lead" style="margin-top:0;color:var(--fg)"><strong>Language Server Protocol</strong><br>개발 도구와 언어 서버가 코드의 위치·심볼·진단을 주고받는 약속</p>
+<div class="flow">
+<div class="node focus"><span class="index">01</span>
+<h3>클라이언트</h3>
+<p>“이 위치의 정의는?”<br>“변경 파일의 오류는?”</p>
+</div>
+<div class="arrow" aria-hidden="true">→</div>
+<div class="node "><span class="index">02</span>
+<h3>LSP 메시지</h3>
+<p>파일 URI · 줄 · 문자 위치<br>요청 / 응답 / 알림</p>
+</div>
+<div class="arrow" aria-hidden="true">→</div>
+<div class="node "><span class="index">03</span>
+<h3>언어 서버</h3>
+<p>언어와 프로젝트 설정으로<br>분석한 결과 반환</p>
+</div>
+</div>
+<div class="row">
+<div class="card tint">
+<h3>분석을 수행하는 구현</h3>
+<p>clangd는 C/C++, csharp-ls는 C#의 언어 서버다.</p>
+</div>
+<div class="card line">
+<h3>이번 구성에서의 사용처</h3>
+<p>IDE가 사용하던 분석 기능을 pi 도구에서도 호출한다.</p>
+</div>
+</div>
+<p class="source">출처: <a href="https://microsoft.github.io/language-server-protocol/">Microsoft · Language Server Protocol</a>
+</p>
+</div>
+<div class="foot"><span>cpp-csharp-lsp-lite · 기술 검토 및 구현 · 2026.09</span><span class="page"></span>
+</div>
+</section>
+
+<section class="slide" aria-label="10. 같은 문자열과 같은 심볼은 다르다">
+<div class="eyebrow">09 · LSP의 필요성</div>
+<h2>같은 문자열과 같은 심볼은 다르다</h2>
+<div class="body">
+<div class="row">
+<pre style="flex:1.1"><span class="c">// 개념 예시: 동명 멤버 함수</span>
+struct Sensor { int read(); };
+struct Buffer { int read(); };
+
+Sensor sensor;
+Buffer buffer;
+sensor.read();  <span class="c">// Sensor::read</span>
+buffer.read();  <span class="c">// Buffer::read</span>
+</pre>
+<div class="stack" style="flex:1">
+<div class="card line">
+<h3>문자열 검색: read 후보 수집</h3>
+<p>선언·호출·주석 등 이름이 나타난 곳을 찾는다.</p>
+</div>
+<div class="card tint">
+<h3>LSP: 위치와 타입을 기준으로 질문</h3>
+<p>sensor.read()의 정의와 참조,<br>타입·서명을 서버에 조회한다.</p>
+</div>
+</div>
+</div>
+<p class="source">개념 근거: <a href="https://microsoft.github.io/language-server-protocol/">LSP의 definition · references · hover</a>
+</p>
+<p class="takeaway">이름 검색에 프로젝트의 의미 정보를 더해, 변경 대상을 확인한다.</p>
+</div>
+<div class="foot"><span>cpp-csharp-lsp-lite · 기술 검토 및 구현 · 2026.09</span><span class="page"></span>
+</div>
+</section>
+
+<section class="slide" aria-label="11. 편집 직후 진단을 다음 행동으로 돌려준다">
+<div class="eyebrow">10 · 핵심 메커니즘</div>
+<h2>편집 직후 진단을 다음 행동으로 돌려준다</h2>
+<div class="body">
+<div class="flow">
+<div class="node focus"><span class="index">01</span>
+<h3>대상 확인</h3>
+<p>정의·참조·타입 조회<br>변경할 코드 파악</p>
+</div>
+<div class="arrow" aria-hidden="true">→</div>
+<div class="node "><span class="index">02</span>
+<h3>파일 수정</h3>
+<p>pi edit / write<br>저장된 파일 반영</p>
+</div>
+<div class="arrow" aria-hidden="true">→</div>
+<div class="node "><span class="index">03</span>
+<h3>진단 수집</h3>
+<p>언어 서버 분석<br>오류·경고 조회</p>
+</div>
+<div class="arrow" aria-hidden="true">→</div>
+<div class="node "><span class="index">04</span>
+<h3>결과 전달</h3>
+<p>편집 결과에 첨부<br>모델이 후속 수정</p>
+</div>
+</div>
+<div class="loopback">진단을 근거로 다시 탐색·수정 ↶</div>
+<div class="row">
+<div class="card tint">
+<h3>진단이 도착한 경우</h3>
+<p>오류 위치·메시지를 다음 판단의 근거로 제공한다.</p>
+</div>
+<div class="card line">
+<h3>응답이 지연되거나 실패한 경우</h3>
+<p>pending / 실패를 표시한다. 무응답을 오류 없음으로 처리하지 않는다.</p>
+</div>
+</div>
+<p class="takeaway">언어 진단은 수정 중간의 피드백이며, 최종 빌드·테스트와 함께 사용한다.</p>
+</div>
+<div class="foot"><span>cpp-csharp-lsp-lite · 기술 검토 및 구현 · 2026.09</span><span class="page"></span>
+</div>
+</section>
+
+<section class="slide" aria-label="12. 분석의 품질은 프로젝트 맥락에 달려 있다">
+<div class="eyebrow">11 · 성립 조건</div>
+<h2>분석의 품질은 프로젝트 맥락에 달려 있다</h2>
+<div class="body">
+<div class="row">
+<div class="card tint">
+<h3>C / C++</h3>
+<p>compile_commands.json 또는 compile_flags.txt<br><br>헤더 경로 · 전처리 매크로 · 언어 표준<br>MSVC / Windows SDK / 외부 헤더</p>
+</div>
+<div class="card line">
+<h3>C#</h3>
+<p>solution / csproj와 맞는 SDK<br><br>프로젝트 참조 · 대상 프레임워크<br>기존 환경의 NuGet 의존성</p>
+</div>
+</div>
+<div class="callout warn"><b>실패 해석</b><span>헤더·패키지 누락으로 발생한 진단은 먼저 분석 환경을 점검한다.</span>
+</div>
+<p class="source">출처: <a href="https://clangd.llvm.org/design/compile-commands">clangd · Compile commands</a> / 저장소 README의 프로젝트 준비 조건</p>
+<p class="takeaway">실행 도구는 ZIP으로 배포하고, 프로젝트별 빌드 맥락은 별도로 준비한다.</p>
+</div>
+<div class="foot"><span>cpp-csharp-lsp-lite · 기술 검토 및 구현 · 2026.09</span><span class="page"></span>
+</div>
+</section>
+
+<section class="slide" aria-label="13. 세 확장이 서로 다른 역할을 맡는다">
+<div class="eyebrow">12 · 확장 구성</div>
+<h2>세 확장이 서로 다른 역할을 맡는다</h2>
+<div class="body">
+<table>
+<thead>
+<tr>
+<th style="width:26%">구성요소</th>
+<th style="width:40%">역할</th>
+<th>현재 배포 설정</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>cpp-csharp-lsp-lite</strong>
+</td>
+<td>C++·C# 정의 / 참조 / 타입 / 심볼 / 진단</td>
+<td>기존 언어 서버 연결과 편집 후 진단 유지</td>
+</tr>
+<tr>
+<td><strong>pi-lens 4.4.3</strong>
+</td>
+<td>구조 분석·추가 진단·심볼 탐색</td>
+<td>자체 LSP 끔, 분석 WASM·ast-grep 동봉</td>
+</tr>
+<tr>
+<td><strong>pi-subagents 0.79.1</strong>
+</td>
+<td>조사·구현·검토 등의 작업 위임</td>
+<td>foreground 사용, 사내 모델 설정 필요</td>
+</tr>
+</tbody>
+</table>
+<div class="callout info"><b>운영 경계</b><span>추가 린터는 준비된 도구 범위에서 사용. Windows background 서브에이전트는 실험적 지원.</span>
+</div>
+<p class="source"><a href="https://github.com/apmantza/pi-lens">pi-lens</a> · <a href="https://github.com/nicobailon/pi-subagents/blob/main/docs/standalone-background.md">pi-subagents standalone 지원 범위</a> · config 및 버전 잠금 파일</p>
+<p class="takeaway">확장은 역할이 필요한 곳에 추가하고, 중복 분석과 실행 제약을 명시한다.</p>
+</div>
+<div class="foot"><span>cpp-csharp-lsp-lite · 기술 검토 및 구현 · 2026.09</span><span class="page"></span>
+</div>
+</section>
+
+<section class="slide" aria-label="14. 설치 절차를 재현 가능한 오프라인 묶음으로">
+<div class="eyebrow">13 · 배포 설계</div>
+<h2>설치 절차를 재현 가능한 오프라인 묶음으로</h2>
+<div class="body">
+<div class="flow">
+<div class="node focus"><span class="index">01</span>
+<h3>일반망 준비</h3>
+<p>버전·해시 고정 다운로드<br>실행 파일·SDK·확장 조립</p>
+</div>
+<div class="arrow" aria-hidden="true">→</div>
+<div class="node "><span class="index">02</span>
+<h3>검증·반입</h3>
+<p>파일 manifest와 ZIP 체크섬<br>기존 망간자료전송 절차</p>
+</div>
+<div class="arrow" aria-hidden="true">→</div>
+<div class="node "><span class="index">03</span>
+<h3>방산망 실행</h3>
+<p>ZIP 압축 해제 · 사내 API 설정<br>setup.ps1 1회 → 어디서나 pi</p>
+</div>
+</div>
+<div class="row">
+<div class="card tint">
+<h3>배포에 포함</h3>
+<p>pi · clangd · csharp-ls · .NET SDK<br>확장 의존성 · Windows 네이티브 파일 · WASM</p>
+</div>
+<div class="card line">
+<h3>별도로 준비</h3>
+<p>config/models.json · API KEY<br>프로젝트별 헤더·SDK·NuGet 패키지</p>
+</div>
+</div>
+<p class="takeaway">대상 PC: setup.ps1이 시스템 Path와 설정 폴더(config/)를 등록한다. 로그인 때 초기화되는 사용자 변수는 쓰지 않는다.</p>
+</div>
+<div class="foot"><span>cpp-csharp-lsp-lite · 기술 검토 및 구현 · 2026.09</span><span class="page"></span>
+</div>
+</section>
+
+<section class="slide" aria-label="15. 동작 확인과 업무 효과 입증을 구분한다">
+<div class="eyebrow">14 · 검증 결과</div>
+<h2>동작 확인과 업무 효과 입증을 구분한다</h2>
+<div class="body">
+<table class="compact">
+<thead>
+<tr>
+<th style="width:32%">검증 항목</th>
+<th style="width:20%">확인 상태</th>
+<th>증거 / 범위</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LSP 클라이언트·패키징</td>
+<td><span class="label pass">로컬 통과</span>
+</td>
+<td>단위 테스트 11개, TypeScript 타입 검사</td>
+</tr>
+<tr>
+<td>세 확장 동시 로딩</td>
+<td><span class="label pass">로컬 통과</span>
+</td>
+<td>도구 중복 없음, pi 1.3.0 로더</td>
+</tr>
+<tr>
+<td>실제 도구 호출·서브에이전트</td>
+<td><span class="label pass">로컬 통과</span>
+</td>
+<td>C++ 구조 분석·LSP·자식 응답 / 모의 모델 API</td>
+</tr>
+<tr>
+<td>오프라인 ZIP</td>
+<td><span class="label pass">로컬 통과</span>
+</td>
+<td>캐시 재빌드, 10,014개 파일 해시·체크섬 확인</td>
+</tr>
+<tr>
+<td>새 확장 포함 Windows 실행</td>
+<td><span class="label pending">새 저장소에서 재검증 필요</span>
+</td>
+<td><a href="https://github.com/junyeong-nero/pi-offline-kit/actions/workflows/offline.yml">현재 Windows CI 실행 결과 확인</a>
+</td>
+</tr>
+<tr>
+<td>사내 프로젝트 생산성</td>
+<td><span class="label pending">미측정</span>
+</td>
+<td>실제 모델·프로젝트에서 후속 평가 필요</td>
+</tr>
+</tbody>
+</table>
+<p class="source">검증 기록: tests/ · dist/*.sha256 · 2026-09-29 로컬 확인. 새 확장 조합 Windows CI 성공 확인 (97b5071).</p>
+<p class="takeaway">현재 확보한 근거는 통합 동작과 배포 재현성이다. 생산성 개선 수치는 아직 없다.</p>
+</div>
+<div class="foot"><span>cpp-csharp-lsp-lite · 기술 검토 및 구현 · 2026.09</span><span class="page"></span>
+</div>
+</section>
+
+<section class="slide" aria-label="16. 다음 실험은 “LSP가 실제로 도움이 되는가”">
+<div class="eyebrow">15 · 평가 계획</div>
+<h2>다음 실험은 “LSP가 실제로 도움이 되는가”</h2>
+<div class="body">
+<table>
+<thead>
+<tr>
+<th style="width:25%">비교 조건</th>
+<th>동일하게 고정할 항목</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A · pi 기본 도구</td>
+<td rowspan="2">동일 모델·설정, 동일 프로젝트 스냅샷과 과제,<br>동일 시간·토큰 예산과 빌드·테스트 기준</td>
+</tr>
+<tr>
+<td>B · 기본 도구 + LSP</td>
+</tr>
+</tbody>
+</table>
+<div class="row">
+<div class="card tint">
+<h3>과제</h3>
+<p>함수 변경 · 참조 수정<br>타입 오류 해결 · 회귀 수정</p>
+</div>
+<div class="card line">
+<h3>측정</h3>
+<p>완료율 · 소요 시간<br>수정 반복 · 토큰 · 사람 개입</p>
+</div>
+<div class="card line">
+<h3>판정</h3>
+<p>빌드·테스트 통과<br>의도한 변경인지 코드 리뷰</p>
+</div>
+</div>
+<p class="takeaway">반복 실행과 실패 사례를 포함해 평가한 뒤, lens·subagents의 추가 효과를 따로 측정한다.</p>
+</div>
+<div class="foot"><span>cpp-csharp-lsp-lite · 기술 검토 및 구현 · 2026.09</span><span class="page"></span>
+</div>
+</section>
+
+<section class="slide" aria-label="17. 운영 도입 전에 확인할 네 가지">
+<div class="eyebrow">16 · 한계와 후속 과제</div>
+<h2>운영 도입 전에 확인할 네 가지</h2>
+<div class="body">
+<div class="row">
+<div class="card line">
+<h3>01 · 분석 환경 의존</h3>
+<p>SDK·헤더·빌드 옵션이 어긋나면 진단 품질이 낮아진다.<br><strong>다음:</strong> 실제 C++·C# 프로젝트별 준비 절차 검증</p>
+</div>
+<div class="card line">
+<h3>02 · 검증 범위</h3>
+<p>LSP는 실행 동작이나 업무 요구사항 전체를 증명하지 않는다.<br><strong>다음:</strong> 빌드·테스트·리뷰를 완료 기준으로 유지</p>
+</div>
+</div>
+<div class="row">
+<div class="card line">
+<h3>03 · 확장 호환성</h3>
+<p>pi·확장 버전과 OS에 따라 동작이 달라질 수 있다.<br><strong>다음:</strong> 버전 고정 + Windows 통합 회귀 검사</p>
+</div>
+<div class="card line">
+<h3>04 · 모델과 비용</h3>
+<p>모델 품질·문맥 한도·작업 위임이 결과와 비용에 영향을 준다.<br><strong>다음:</strong> 사내 모델별 완료율·토큰·대기 시간 측정</p>
+</div>
+</div>
+</div>
+<div class="foot"><span>cpp-csharp-lsp-lite · 기술 검토 및 구현 · 2026.09</span><span class="page"></span>
+</div>
+</section>
+
+<section class="slide" aria-label="18. 도입은 대표 프로젝트의 작은 과제부터">
+<div class="eyebrow">17 · 업무 흐름</div>
+<h2>도입은 대표 프로젝트의 작은 과제부터</h2>
+<div class="body">
+<div class="flow">
+<div class="node focus"><span class="index">01</span>
+<h3>준비</h3>
+<p>완성 ZIP + 사내 API<br>프로젝트 빌드 맥락</p>
+</div>
+<div class="arrow" aria-hidden="true">→</div>
+<div class="node "><span class="index">02</span>
+<h3>연결 확인</h3>
+<p>모델 응답·정의 탐색<br>진단 수신 확인</p>
+</div>
+<div class="arrow" aria-hidden="true">→</div>
+<div class="node "><span class="index">03</span>
+<h3>작은 수정</h3>
+<p>범위 지정 → 수정<br>진단 → 빌드·테스트</p>
+</div>
+<div class="arrow" aria-hidden="true">→</div>
+<div class="node "><span class="index">04</span>
+<h3>확대 판단</h3>
+<p>리뷰와 변경 기록<br>효과·실패·비용 비교</p>
+</div>
+</div>
+<div class="thesis">pi로 실행을 연결하고, LSP로 언어 분석을 돌려준다.<br>업무 효과는 실제 프로젝트에서 측정한다.</div>
+<p class="takeaway">제안: 재현 가능한 배포와 짧은 피드백 흐름을 먼저 확보하고, 실측으로 확대를 결정한다.</p>
+</div>
+<div class="foot"><span>cpp-csharp-lsp-lite · 기술 검토 및 구현 · 2026.09</span><span class="page"></span>
+</div>
+</section>
+
+<section class="slide" aria-label="19. 현재 구성: setup.ps1로 한 번 설정하고 pi로 실행">
+<div class="eyebrow">부록 A · 준비 PC</div>
+<h2>현재 구성: setup.ps1로 한 번 설정하고 pi로 실행</h2>
+<div class="body tight">
+<pre style="font-size:17px"><span class="c"># 배포 폴더에서 한 번 (관리자 승인)</span>
+Set-ExecutionPolicy -Scope Process Bypass
+.\setup.ps1
+<span class="c"># 이후 새 터미널의 어느 폴더에서나</span>
+pi
+
+<span class="c"># 아무것도 바꾸지 않고 필수 파일만 확인</span>
+.\setup.ps1 -Check</pre>
+<div class="row">
+<div class="card tint">
+<h3>setup.ps1이 등록하는 시스템 변수</h3>
+<p>Path: bin(fd·rg) · bin\pi · SVN · ast-grep<br>PI_CODING_AGENT_DIR = 배포 폴더\config</p>
+</div>
+<div class="card line">
+<h3>포함 제외</h3>
+<p>실제 config/models.json · 인증 정보<br>config/ 아래 세션·캐시</p>
+</div>
+</div>
+<p class="takeaway">GitHub Release의 완성 ZIP 하나를 반입한다. pi 설정은 config/ 한 곳에서 관리한다.</p>
+</div>
+<div class="foot"><span>cpp-csharp-lsp-lite · 기술 검토 및 구현 · 2026.09</span><span class="page"></span>
+</div>
+</section>
+
+<section class="slide" aria-label="20. 압축 해제 → 사내 모델 설정 → setup.ps1 → pi">
+<div class="eyebrow">부록 B · 방산망 실행</div>
+<h2>압축 해제 → 사내 모델 설정 → setup.ps1 → pi</h2>
+<div class="body">
+<pre style="font-size:16px"><span class="p">PS&gt;</span> Expand-Archive .\pi-offline-kit-win-x64.zip -DestinationPath D:\
+<span class="p">PS&gt;</span> cd D:\pi-offline-kit
+<span class="p">PS&gt;</span> Copy-Item config\models.example.json config\models.json
+<span class="c"># config\models.json의 baseUrl / model id를 사내 제공 값으로 편집</span>
+<span class="p">PS&gt;</span> setx /M CORP_LLM_API_KEY "&lt;발급받은 API KEY&gt;"   <span class="c"># 관리자 터미널</span>
+<span class="p">PS&gt;</span> Set-ExecutionPolicy -Scope Process Bypass
+<span class="p">PS&gt;</span> .\setup.ps1
+<span class="p">PS&gt;</span> cd D:\work\MyProject; pi   <span class="c"># 새 터미널</span></pre>
+<table class="compact">
+<tr>
+<th>필드</th>
+<th>설정 기준</th>
+</tr>
+<tr>
+<td><code>baseUrl</code> / <code>models[].id</code>
+</td>
+<td>사내 API 안내에 명시된 주소와 모델 ID 사용</td>
+</tr>
+<tr>
+<td><code>apiKey</code>
+</td>
+<td><code>$CORP_LLM_API_KEY</code> 참조 유지 · 키는 시스템 변수로 등록</td>
+</tr>
+<tr>
+<td><code>contextWindow</code> / <code>maxTokens</code>
+</td>
+<td>예제 숫자를 그대로 가정하지 않고 모델 지원 범위로 조정</td>
+</tr>
+</table>
+</div>
+<div class="foot"><span>cpp-csharp-lsp-lite · 기술 검토 및 구현 · 2026.09</span><span class="page"></span>
+</div>
+</section>
+
+<section class="slide" aria-label="21. 실행 성공과 프로젝트 분석 성공을 따로 확인">
+<div class="eyebrow">부록 C · 운영 확인</div>
+<h2>실행 성공과 프로젝트 분석 성공을 따로 확인</h2>
+<div class="body">
+<pre style="font-size:17px"><span class="c"># 아무것도 바꾸지 않고 배포 파일 확인</span>
+.\setup.ps1 -Check</pre>
+<table class="compact">
+<tr>
+<th style="width:27%">증상</th>
+<th>먼저 확인할 항목</th>
+</tr>
+<tr>
+<td><code>pi</code>를 찾을 수 없음</td>
+<td>새 터미널에서 실행했는지 · setup.ps1 실행 여부 · 시스템 Path</td>
+</tr>
+<tr>
+<td>모델 연결 실패</td>
+<td>사내 API 접근 · 키 · provider/model · API 호환 설정</td>
+</tr>
+<tr>
+<td>헤더·타입·패키지 오류</td>
+<td>C++ 컴파일 옵션·SDK / C# solution·SDK·기존 NuGet 환경</td>
+</tr>
+<tr>
+<td>진단 pending / 서버 실패</td>
+<td>서버 경로 · 프로젝트 루트 · 초기화·진단 제한 시간</td>
+</tr>
+<tr>
+<td>서브에이전트 실행 실패</td>
+<td>사내 모델 ID · foreground(async: false) · Windows 지원 범위</td>
+</tr>
+</table>
+<p class="takeaway">실제 프로젝트에서도 정의 탐색 → 오류 유발 → 수정 후 진단 변화 → 빌드·테스트를 확인한다.</p>
+</div>
+<div class="foot"><span>cpp-csharp-lsp-lite · 기술 검토 및 구현 · 2026.09</span><span class="page"></span>
+</div>
+</section>
+
+<section class="slide" aria-label="22. 설명은 공식 규약과 현재 구현을 기준으로">
+<div class="eyebrow">부록 D · 근거와 문서</div>
+<h2>설명은 공식 규약과 현재 구현을 기준으로</h2>
+<div class="body">
+<table class="compact">
+<tr>
+<th style="width:25%">주제</th>
+<th>근거 / 상세 문서</th>
+</tr>
+<tr>
+<td>LSP 정의·기능</td>
+<td><a href="https://microsoft.github.io/language-server-protocol/">Microsoft · Language Server Protocol</a>
+</td>
+</tr>
+<tr>
+<td>C++ 분석 맥락</td>
+<td><a href="https://clangd.llvm.org/design/compile-commands">clangd · Compile commands</a>
+</td>
+</tr>
+<tr>
+<td>pi 실행·확장</td>
+<td><a href="../bin/pi/docs/extensions.md">동봉 pi 1.3.0 extension 문서</a> · <a href="../extensions/cpp-csharp-lsp-lite/README.md">LSP 연결 문서</a>
+</td>
+</tr>
+<tr>
+<td>확장 지원 범위</td>
+<td><a href="https://github.com/apmantza/pi-lens">pi-lens</a> · <a href="https://github.com/nicobailon/pi-subagents/blob/main/docs/standalone-background.md">pi-subagents standalone</a>
+</td>
+</tr>
+<tr>
+<td>배포·재현</td>
+<td><a href="../README.md">README</a> · <a href="../config/offline-artifacts.lock.json">런타임 잠금 파일</a> · <a href="../config/extensions/package-lock.json">확장 잠금 파일</a>
+</td>
+</tr>
+<tr>
+<td>검증·라이선스</td>
+<td><a href="https://github.com/junyeong-nero/pi-offline-kit/actions/workflows/offline.yml">Windows CI</a> · tests/ · <a href="../third_party/README.md">third_party</a>
+</td>
+</tr>
+</table>
+<p class="small muted">기준: 2026-09-29, 구현 커밋 97b5071. 업무 효과 비교는 평가 계획이며 실측 결과가 아니다.</p>
+</div>
+<div class="foot"><span>cpp-csharp-lsp-lite · 기술 검토 및 구현 · 2026.09</span><span class="page"></span>
+</div>
+</section>
+</div>
+</div>
+<div class="progress" id="progress">
+</div>
+<nav class="nav" aria-label="슬라이드 이동"><button id="prev" aria-label="이전 슬라이드">←</button><button id="next" aria-label="다음 슬라이드">→</button>
+</nav>
+<div class="hint">← → 이동 · F 전체화면</div>
+
+<script>
+  (function () {
+    var stage = document.getElementById("stage");
+    var slides = Array.prototype.slice.call(stage.querySelectorAll(".slide"));
+    var progress = document.getElementById("progress");
+    var current = 0;
+
+    slides.forEach(function (s, i) {
+      var page = s.querySelector(".page");
+      if (page) page.textContent = (i + 1) + " / " + slides.length;
+    });
+
+    function fit() {
+      var scale = Math.min(window.innerWidth / 1280, window.innerHeight / 720) * 0.96;
+      stage.style.transform = "scale(" + scale + ")";
+    }
+
+    function show(n) {
+      current = Math.max(0, Math.min(slides.length - 1, n));
+      slides.forEach(function (s, i) { s.classList.toggle("active", i === current); s.setAttribute("aria-hidden", i !== current ? "true" : "false"); s.inert = i !== current; });
+      progress.style.width = ((current + 1) / slides.length * 100) + "%";
+      if (location.hash !== "#" + (current + 1)) history.replaceState(null, "", "#" + (current + 1));
+    }
+
+    document.getElementById("prev").addEventListener("click", function () { show(current - 1); });
+    document.getElementById("next").addEventListener("click", function () { show(current + 1); });
+    document.addEventListener("keydown", function (e) {
+      if (e.target.closest("a, button, input, textarea, select")) return;
+      if (["ArrowRight", "PageDown", " ", "Enter"].indexOf(e.key) >= 0) { e.preventDefault(); show(current + 1); }
+      else if (["ArrowLeft", "PageUp", "Backspace"].indexOf(e.key) >= 0) { e.preventDefault(); show(current - 1); }
+      else if (e.key === "Home") show(0);
+      else if (e.key === "End") show(slides.length - 1);
+      else if (e.key === "f" || e.key === "F") {
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
+        else document.exitFullscreen && document.exitFullscreen();
+      }
+    });
+    document.addEventListener("click", function (e) {
+      if (e.target.closest("a, button, input, textarea, select")) return;
+      if (window.getSelection && String(window.getSelection())) return;
+      show(e.clientX > window.innerWidth / 2 ? current + 1 : current - 1);
+    });
+    window.addEventListener("resize", fit);
+    window.addEventListener("hashchange", function () { show((parseInt(location.hash.slice(1), 10) || 1) - 1); });
+
+    fit();
+    show((parseInt(location.hash.slice(1), 10) || 1) - 1);
+  })();
+</script>
+</body>
+</html>

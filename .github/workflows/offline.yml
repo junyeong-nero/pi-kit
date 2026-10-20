@@ -1,0 +1,609 @@
+name: Offline Windows bundle
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: offline-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      OFFLINE_TEST_FOLDER: offline space 한글
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Check client
+        timeout-minutes: 5
+        shell: pwsh
+        run: |
+          npm ci --ignore-scripts
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          powershell -NoProfile -ExecutionPolicy Bypass -File tests/environment.ps1
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          npm test
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          npm run typecheck
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python -B -m unittest discover -s tests -p 'bundle_identity_test.py'
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python -m pip install --require-hashes --only-binary=:all: -r config/redis/requirements.lock
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python -m unittest discover -s tests -p 'build_center_mcp_test.py'
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python -B -m unittest discover -s tests -p 'edge_mcp_test.py'
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Assemble complete ZIP
+        id: build
+        timeout-minutes: 10
+        shell: python
+        env:
+          RELEASE_VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'dev' }}
+        run: |
+          #!/usr/bin/env python3
+          """Build the Windows x64 offline distribution on an internet-connected machine.
+
+          The target Windows machine uses the bundled Python, with all packages prepared here.
+          Downloads are version/hash pinned. --no-download rebuilds using the verified cache.
+          """
+          import argparse
+          import base64
+          import hashlib
+          import json
+          import os
+          from pathlib import Path, PurePosixPath
+          import shutil
+          import ssl
+          import subprocess
+          import tarfile
+          import tempfile
+          import urllib.request
+          import zipfile
+
+          ROOT = Path.cwd()
+
+
+          def digest(path, algorithm="sha256"):
+              value = hashlib.new(algorithm)
+              with Path(path).open("rb") as source:
+                  for block in iter(lambda: source.read(1024 * 1024), b""):
+                      value.update(block)
+              return value.hexdigest()
+
+
+          def check_archive(path, artifact):
+              algorithm = "sha512" if "sha512" in artifact else "sha256"
+              if digest(path, algorithm) != artifact[algorithm]:
+                  raise ValueError(f"Checksum mismatch: {path}")
+
+
+          def fetch(name, artifact, cache, offline):
+              target = cache / f"{name}{artifact.get('suffix', '.zip')}"
+              if not target.exists():
+                  if offline:
+                      raise FileNotFoundError(f"Missing cache: {target}")
+                  print(f"Downloading {name} {artifact['version']} ...", flush=True)
+                  request = urllib.request.Request(artifact["url"], headers={"User-Agent": "pi-offline-kit-offline-builder"})
+                  partial = target.with_suffix(".partial")
+                  try:
+                      with urllib.request.urlopen(request, context=ssl.create_default_context(), timeout=120) as source, partial.open("wb") as out:
+                          shutil.copyfileobj(source, out)
+                      check_archive(partial, artifact)
+                      partial.replace(target)
+                  finally:
+                      partial.unlink(missing_ok=True)
+              check_archive(target, artifact)
+              return target
+
+
+          def extract(archive, destination, prefix="", files=None):
+              """Reject unsafe ZIP entries, and retain the distribution's relative layout."""
+              remaining = set(files) if files is not None else None
+              with zipfile.ZipFile(archive) as source:
+                  for entry in source.infolist():
+                      # Some Windows publishers use backslashes as ZIP separators.
+                      filename = entry.filename.replace("\\", "/")
+                      if not filename.startswith(prefix) or filename.endswith("/"):
+                          continue
+                      relative = filename[len(prefix):]
+                      path = PurePosixPath(relative)
+                      if not relative or path.is_absolute() or ".." in path.parts or "\\" in relative or ":" in relative:
+                          raise ValueError(f"Unsafe ZIP member: {entry.filename}")
+                      if files is not None and relative not in files:
+                          continue
+                      target = destination.joinpath(*path.parts)
+                      target.parent.mkdir(parents=True, exist_ok=True)
+                      with source.open(entry) as src, target.open("wb") as dst:
+                          shutil.copyfileobj(src, dst)
+                      if remaining is not None:
+                          remaining.discard(relative)
+              if remaining:
+                  raise FileNotFoundError(f"Missing ZIP members in {archive}: {sorted(remaining)}")
+
+
+          def require_pe(path):
+              with path.open("rb") as source:
+                  if source.read(2) != b"MZ":
+                      raise ValueError(f"Not a Windows executable (possibly a Git LFS pointer): {path}")
+
+
+          def enable_svn_utf8(destination):
+              """SVN converts argv using ACP, including its own path; opt into UTF-8 per process."""
+              sdk = Path(os.environ["ProgramFiles(x86)"]) / "Windows Kits/10/bin"
+              candidates = sorted(sdk.glob("*/x64/mt.exe"))
+              if not candidates:
+                  raise FileNotFoundError("Windows SDK manifest tool missing on the build runner")
+              manifest = destination / "utf8.manifest"
+              manifest.write_text(
+                  '<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">'
+                  '<application xmlns="urn:schemas-microsoft-com:asm.v3"><windowsSettings>'
+                  '<activeCodePage xmlns="http://schemas.microsoft.com/SMI/2019/WindowsSettings">UTF-8</activeCodePage>'
+                  '</windowsSettings></application></assembly>', encoding="utf-8")
+              for executable in sorted((destination / "bin").glob("*.exe")):
+                  subprocess.run([str(candidates[-1]), f"-inputresource:{executable};#1",
+                                  "-manifest", str(manifest), f"-outputresource:{executable};#1"], check=True)
+              (destination / "HARNESS-MODIFICATIONS.txt").write_text(
+                  "pi-offline-kit modifies the embedded application manifests of bin/*.exe to enable "
+                  "the UTF-8 active code page (Windows 10 version 1903 or later). "
+                  "Existing manifest entries, DLLs and Licenses are preserved. "
+                  "This supports Unicode bundle and working-copy paths without changing system locale.\n",
+                  encoding="utf-8")
+
+
+          def extract_npm(archive, destination):
+              """Extract npm files without executing lifecycle scripts or following links."""
+              with tarfile.open(archive, "r:gz") as source:
+                  for entry in source:
+                      path = PurePosixPath(entry.name)
+                      if (path.is_absolute() or ".." in path.parts or "\\" in entry.name
+                              or ":" in entry.name or not path.parts or path.parts[0] != "package"):
+                          raise ValueError(f"Unsafe npm member: {entry.name}")
+                      if entry.isdir():
+                          continue
+                      if not entry.isfile() or len(path.parts) < 2:
+                          raise ValueError(f"Unsupported npm member: {entry.name}")
+                      target = destination.joinpath(*path.parts[1:])
+                      target.parent.mkdir(parents=True, exist_ok=True)
+                      with source.extractfile(entry) as src, target.open("wb") as dst:
+                          shutil.copyfileobj(src, dst)
+                      target.chmod(0o755 if entry.mode & 0o111 else 0o644)
+
+
+          def prepare_extensions(no_download=False, platform="win32", cpu="x64", destination=None):
+              """Materialize the npm lock for the target OS, without npm on the target PC."""
+              lock_path = ROOT / "config/extensions/package-lock.json"
+              lock = json.loads(lock_path.read_text())
+              package = json.loads((lock_path.parent / "package.json").read_text())
+              if lock["packages"][""]["dependencies"] != package["dependencies"]:
+                  raise ValueError("Extension package.json and package-lock.json disagree")
+              cache = ROOT / ".cache/offline/extensions"
+              cache.mkdir(parents=True, exist_ok=True)
+              destination = Path(destination) if destination else ROOT / "vendor/extensions"
+              selected = {}
+              with tempfile.TemporaryDirectory(prefix="extensions-", dir=cache) as tmp:
+                  stage = Path(tmp) / "files"
+                  stage.mkdir()
+                  for relative, metadata in lock["packages"].items():
+                      if not relative:
+                          continue
+                      if platform not in metadata.get("os", [platform]) or cpu not in metadata.get("cpu", [cpu]):
+                          continue
+                      path = PurePosixPath(relative)
+                      if path.is_absolute() or ".." in path.parts or "\\" in relative or ":" in relative or path.parts[0] != "node_modules":
+                          raise ValueError(f"Unsafe npm package path: {relative}")
+                      integrity = metadata["integrity"]
+                      algorithm, encoded = integrity.split("-", 1)
+                      if algorithm != "sha512" or not metadata["resolved"].startswith("https://registry.npmjs.org/"):
+                          raise ValueError(f"Unsupported npm lock entry: {relative}")
+                      checksum = base64.b64decode(encoded, validate=True).hex()
+                      artifact = {"url": metadata["resolved"], "version": metadata["version"], "sha512": checksum, "suffix": ".tgz"}
+                      archive = fetch(checksum, artifact, cache, no_download)
+                      extract_npm(archive, stage / relative)
+                      selected[relative] = metadata
+                  # @ast-grep/cli's postinstall normally copies these native executables.
+                  # Copy directly from the verified platform package; no install scripts run.
+                  native = f"cli-{platform}-{cpu}" + ("-msvc" if platform == "win32" else "")
+                  suffix = ".exe" if platform == "win32" else ""
+                  for name in ("ast-grep", "sg"):
+                      source = stage / "node_modules/@ast-grep" / native / (name + suffix)
+                      if source.exists():
+                          shutil.copy2(source, stage / "node_modules/@ast-grep/cli" / (name + suffix))
+                  if platform == "win32":
+                      require_pe(stage / "node_modules/@ast-grep/cli/ast-grep.exe")
+                      require_pe(stage / f"node_modules/@ast-grep/napi-win32-{cpu}-msvc/ast-grep-napi.win32-{cpu}-msvc.node")
+                  # pi-lens ships only core grammars and otherwise downloads them on demand.
+                  # Include every grammar in its pinned manifest, notably C/C++ and C#.
+                  lens = stage / "node_modules/pi-lens"
+                  grammar_lock = json.loads((lens / "scripts/grammars.lock.json").read_text())
+                  for filename, integrity in grammar_lock["grammars"].items():
+                      target = lens / "grammars" / filename
+                      candidates = [target, stage / "node_modules/tree-sitter-wasms/out" / filename,
+                                    stage / "node_modules/@tree-sitter-grammars/tree-sitter-lua" / filename]
+                      expected = integrity.removeprefix("sha256:")
+                      source = next((p for p in candidates if p.is_file() and digest(p) == expected), None)
+                      if source is None:
+                          raise ValueError(f"Missing pinned pi-lens grammar: {filename}")
+                      if source != target:
+                          shutil.copy2(source, target)
+                  for name in ("package.json", "package-lock.json"):
+                      shutil.copy2(lock_path.parent / name, stage / name)
+                  # Bundled roles must use the Windows shell rather than require Git Bash.
+                  for agent in (stage / "node_modules/pi-subagents/agents").glob("*.md"):
+                      text = agent.read_text(encoding="utf-8")
+                      text = text.replace(", bash", ", powershell").replace("`bash`", "`powershell`")
+                      agent.write_text(text, encoding="utf-8")
+                  (stage / "manifest.json").write_text(json.dumps({"platform": platform, "cpu": cpu, "packages": selected}, indent=2) + "\n")
+                  if destination.exists():
+                      shutil.rmtree(destination)
+                  destination.parent.mkdir(parents=True, exist_ok=True)
+                  shutil.move(str(stage), destination)
+              print(f"Prepared {len(selected)} extension packages ({platform}/{cpu})", flush=True)
+
+
+          def prepare_python(no_download=False):
+              """Install hash-locked Windows wheels on CI, never on the offline target."""
+              runtime = ROOT / "runtime/python"
+              packages = runtime / "Lib/site-packages"
+              wheels = ROOT / ".cache/offline/python-wheels"
+              wheels.mkdir(parents=True, exist_ok=True)
+              if not no_download:
+                  subprocess.run([os.sys.executable, "-m", "pip", "download", "--require-hashes", "--only-binary=:all:",
+                                  "--dest", str(wheels), "-r", str(ROOT / "config/redis/requirements.lock")], check=True)
+              subprocess.run([os.sys.executable, "-m", "pip", "install", "--require-hashes",
+                              "--no-index", "--find-links", str(wheels),
+                              "--only-binary=:all:", "--no-compile", "--no-warn-script-location",
+                              "--target", str(packages), "-r", str(ROOT / "config/redis/requirements.lock")], check=True)
+              # Embedded Python ignores PYTHONPATH. Include our server and site-packages explicitly.
+              (runtime / "python313._pth").write_text(
+                  "python313.zip\n.\nLib/site-packages\n../../mcp/build-center\n../../mcp/edge\nimport site\n", encoding="utf-8")
+              notices = ROOT / "third_party/python"
+              notices.mkdir(parents=True, exist_ok=True)
+              shutil.copy2(runtime / "LICENSE.txt", notices / "PYTHON-LICENSE.txt")
+              shutil.copy2(ROOT / "config/redis/requirements.lock", notices / "requirements.lock")
+              # Preserve wheel METADATA and all bundled upstream license files in site-packages.
+              (notices / "PACKAGES.json").write_text(json.dumps([
+                  {"metadata": str(p.relative_to(runtime)).replace(os.sep, "/"),
+                   "sha256": digest(p)} for p in sorted(packages.glob("*.dist-info/METADATA"))
+              ], indent=2) + "\n", encoding="utf-8")
+              subprocess.run([str(runtime / "python.exe"), "-X", "utf8", "-s", "-c",
+                              "import redis, mcp, pydantic_core, edge_mcp; from main import create_server; from zoneinfo import ZoneInfo; ZoneInfo('Asia/Seoul'); edge_mcp.server_command()"], check=True)
+
+
+          def build(output, no_download=False, prepare_only=False):
+              lock = json.loads((ROOT / "config/offline-artifacts.lock.json").read_text())
+              cache = ROOT / ".cache/offline"
+              cache.mkdir(parents=True, exist_ok=True)
+              # Verify the compiled pi -> config/mcp.json -> bundled Python path before the large server SDKs.
+              for name in ("pi", "python", "node"):
+                  artifact = lock["artifacts"][name]
+                  destination = ROOT / artifact["destination"]
+                  if destination.exists():
+                      shutil.rmtree(destination)
+                  extract(fetch(name, artifact, cache, no_download), destination, artifact["prefix"])
+              prepare_extensions(no_download)
+              prepare_python(no_download)
+              with tempfile.TemporaryDirectory(prefix="MCP probe 한글 ") as temp:
+                  probe = Path(temp)
+                  for relative in ("bin/pi", "runtime/python", "runtime/node", "vendor/extensions", "extensions", "mcp", "config"):
+                      shutil.copytree(ROOT / relative, probe / relative, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "models.json", "auth.json", "sessions", "cache", "playwright-mcp", "server_IP_mappings.json", "owners.json"))
+                  shutil.copy2(ROOT / "package.json", probe / "package.json")
+                  subprocess.run([os.sys.executable, str(ROOT / "tests/prompt-footprint.py"), str(probe),
+                                  "--probe-redis", "--output", str(cache / "compiled-mcp-probe.json")], check=True)
+              for name, artifact in lock["artifacts"].items():
+                  if name in ("pi", "python", "node"):
+                      continue  # Already verified and prepared above.
+                  archive = fetch(name, artifact, cache, no_download)
+                  destination = ROOT / artifact["destination"]
+                  if artifact.get("format") == "raw":
+                      destination.parent.mkdir(parents=True, exist_ok=True)
+                      shutil.copy2(archive, destination)
+                      if destination.suffix.lower() == ".exe":
+                          require_pe(destination)
+                      continue
+                  # These directories are generated distributions, never project/user data.
+                  with tempfile.TemporaryDirectory(prefix=f"harness-{name}-", dir=cache) as tmp:
+                      staging = Path(tmp) / "files"
+                      staging.mkdir()
+                      extract(archive, staging, artifact["prefix"], artifact.get("files"))
+                      if name == "svn":
+                          enable_svn_utf8(staging)
+                      if name == "csharp-ls":
+                          # Preserve upstream package metadata and README as well as runtime files.
+                          with zipfile.ZipFile(archive) as source:
+                              for item in ("csharp-ls.nuspec", "README.md", "CHANGELOG.md"):
+                                  if item in source.namelist():
+                                      (staging / item).write_bytes(source.read(item))
+                      if "file" in artifact:
+                          destination.parent.mkdir(parents=True, exist_ok=True)
+                          shutil.copy2(staging / artifact["file"], destination)
+                          require_pe(destination)
+                          continue
+                      if destination.exists():
+                          shutil.rmtree(destination)
+                      destination.parent.mkdir(parents=True, exist_ok=True)
+                      shutil.move(str(staging), destination)
+                  print(f"Prepared {artifact['destination']} ({artifact['version']})", flush=True)
+
+              for relative in ("bin/pi/pi.exe", "bin/clangd/bin/clangd.exe", "runtime/dotnet/dotnet.exe", "runtime/python/python.exe", "runtime/node/node.exe", "bin/fd.exe", "bin/rg.exe", "bin/svn/bin/svn.exe", "bin/svn/bin/svnadmin.exe", "bin/redis/redis-cli.exe", "bin/redis/redis-server.exe"):
+                  require_pe(ROOT / relative)
+              for executable in (ROOT / "bin/redis").glob("*.exe"):
+                  require_pe(executable)
+              if prepare_only:
+                  return
+
+              output = Path(output).resolve()
+              output.parent.mkdir(parents=True, exist_ok=True)
+              with tempfile.TemporaryDirectory(prefix="harness-package-", dir=cache) as tmp:
+                  stage = Path(tmp) / "pi-offline-kit"
+                  stage.mkdir()
+                  ignores = {
+                      "tests/fixtures": ("obj", "bin"),
+                      # config/ is the pi settings folder; never ship a real models.json, credentials, sessions or caches.
+                      "config": ("models.json", "auth.json", "sessions", "pi-lens", "playwright-mcp", "bin", "agents", "missions", "agent-memory", "*.bak", "*.log"),
+                  }
+                  def ignore_files(directory, names):
+                      patterns = ["__pycache__", "*.pyc"]
+                      relative = str(Path(directory).relative_to(ROOT)).replace(os.sep, "/")
+                      patterns.extend(ignores.get(relative, ()))
+                      if relative.startswith("config/"):
+                          patterns.extend(ignores["config"])
+                      if relative == "config/redis":
+                          patterns.extend(("server_IP_mappings.json", "owners.json", "cache"))
+                      return shutil.ignore_patterns(*patterns)(directory, names)
+                  for relative in ("bin/pi", "bin/clangd", "bin/csharp-ls", "bin/svn", "bin/redis", "runtime/dotnet", "runtime/python", "runtime/node", "vendor/extensions", "extensions", "mcp", "skills", "config", "scripts", "docs", "third_party", "tests/fixtures"):
+                      shutil.copytree(ROOT / relative, stage / relative, ignore=ignore_files)
+                  for relative in ("setup.ps1", "README.md", "package.json", "bin/fd.exe", "bin/rg.exe"):
+                      shutil.copy2(ROOT / relative, stage / relative)
+                  # Never include local credentials, sessions, caches, or project files.
+                  manifest = {
+                      "version": os.environ.get("RELEASE_VERSION", "dev"),
+                      "platform": lock["platform"], "artifacts": lock["artifacts"],
+                      "files": {str(p.relative_to(stage)).replace(os.sep, "/"): digest(p)
+                                for p in sorted(stage.rglob("*")) if p.is_file()},
+                  }
+                  (stage / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+                  temporary_output = output.with_suffix(".zip.partial")
+                  try:
+                      with zipfile.ZipFile(temporary_output, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as target:
+                          for path in sorted(stage.rglob("*")):
+                              if path.is_file():
+                                  target.write(path, path.relative_to(stage.parent))
+                      temporary_output.replace(output)
+                  finally:
+                      temporary_output.unlink(missing_ok=True)
+              checksum = digest(output)
+              output.with_suffix(output.suffix + ".sha256").write_text(f"{checksum}  {output.name}\n")
+              print(f"Built {output} ({output.stat().st_size / 1024 / 1024:.1f} MiB)\nSHA256 {checksum}")
+
+
+          if __name__ == "__main__":
+              parser = argparse.ArgumentParser(description=__doc__)
+              parser.add_argument("--output", default=str(ROOT / "dist/pi-offline-kit-win-x64.zip"))
+              parser.add_argument("--no-download", action="store_true")
+              parser.add_argument("--prepare-only", action="store_true", help="Extract locked runtime distributions without creating the final ZIP")
+              parser.add_argument("--extensions-only", action="store_true", help="Prepare only the locked Windows extension packages")
+              args = parser.parse_args()
+              if args.extensions_only:
+                  prepare_extensions(args.no_download)
+              else:
+                  build(args.output, args.no_download, args.prepare_only)
+      - name: Load extensions and relocate ZIP
+        shell: pwsh
+        run: |
+          $env:TEST_CLANGD = "$pwd\bin\clangd\bin\clangd.exe"
+          node tests/pi-loader.mjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node tests/extensions-loader.mjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          Expand-Archive dist/pi-offline-kit-win-x64.zip -DestinationPath "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER"
+          $env:USAGE_TEST_BUNDLE = "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER\pi-offline-kit"
+          $env:EDGE_TEST_BUNDLE = $env:USAGE_TEST_BUNDLE
+          try {
+            npm run test:usage
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            npm run test:edge
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          } finally {
+            Remove-Item Env:USAGE_TEST_BUNDLE -ErrorAction SilentlyContinue
+            Remove-Item Env:EDGE_TEST_BUNDLE -ErrorAction SilentlyContinue
+          }
+      - name: Verify Windows binaries with server network access blocked
+        timeout-minutes: 6
+        shell: powershell
+        run: |
+          $bundle = "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER\pi-offline-kit"
+          $programs = @("$bundle\bin\pi\pi.exe", "$bundle\bin\clangd\bin\clangd.exe", "$bundle\runtime\dotnet\dotnet.exe", "$bundle\runtime\node\node.exe", "$bundle\bin\svn\bin\svn.exe")
+          $programs += @(Get-ChildItem "$bundle\bin\csharp-ls" -Filter '*.exe' -Recurse | ForEach-Object FullName)
+          $rules = @()
+          try {
+            foreach ($program in $programs) {
+              $name = "pi-offline-kit-" + [guid]::NewGuid().ToString('N')
+              New-NetFirewallRule -Name $name -DisplayName $name -Direction Outbound -Program $program -Action Block | Out-Null
+              $rules += $name
+            }
+            & "$bundle\setup.ps1" -Check
+            $manifest = Get-Content "$bundle\manifest.json" -Raw | ConvertFrom-Json
+            foreach ($file in $manifest.files.PSObject.Properties) {
+              $actual = (Get-FileHash -LiteralPath (Join-Path $bundle $file.Name) -Algorithm SHA256).Hash.ToLowerInvariant()
+              if ($actual -ne $file.Value) { throw "Checksum mismatch: $($file.Name)" }
+            }
+            $env:TEST_BUNDLE = $bundle
+            $env:TEST_CLANGD = "$bundle\bin\clangd\bin\clangd.exe"
+            $env:TEST_DOTNET = "$bundle\runtime\dotnet\dotnet.exe"
+            node --experimental-strip-types tests/integration.ts
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            python tests/svn-bundle.py "$bundle"
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          } finally {
+            foreach ($name in $rules) { Remove-NetFirewallRule -Name $name }
+          }
+      - name: Verify complete Redis package and Windows service wrapper
+        timeout-minutes: 2
+        shell: powershell
+        run: |
+          python tests/redis-bundle.py "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER\pi-offline-kit" .cache/offline/redis.zip
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Register the bundle system-wide with setup.ps1
+        shell: powershell
+        run: |
+          $bundle = "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER\pi-offline-kit"
+          Copy-Item "$bundle\config\models.example.json" "$bundle\config\models.json"
+          $before = @([Environment]::GetEnvironmentVariable('Path', 'Machine').Split(';') | Where-Object { $_ })
+          $bundledDirs = @("$bundle\bin", "$bundle\bin\pi", "$bundle\bin\svn\bin", "$bundle\bin\redis", "$bundle\runtime\python", "$bundle\vendor\extensions\node_modules\@ast-grep\cli")
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $expectedMSBuild = & $vswhere -latest -products '*' -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\MSBuild.exe' | Select-Object -First 1
+          if (-not $expectedMSBuild) { throw 'The Windows runner must have Visual Studio MSBuild for this test' }
+          $expectedPaths = $bundledDirs + @(Split-Path -Parent $expectedMSBuild)
+          try {
+            & "$bundle\setup.ps1"
+            # Simulate an older setup that appended paths; rerunning must repair priority and duplicates.
+            [Environment]::SetEnvironmentVariable('Path', (($before + $expectedPaths + $expectedPaths[0] + $expectedPaths[-1]) -join ';'), 'Machine')
+            [Environment]::SetEnvironmentVariable('HSC_MSBUILD_EXE', 'C:\missing-msbuild\MSBuild.exe', 'Machine')
+            & "$bundle\setup.ps1"
+            $repaired = [Environment]::GetEnvironmentVariable('Path', 'Machine')
+            [Environment]::SetEnvironmentVariable('HSC_MSBUILD_EXE', 'C:\old-user-msbuild\MSBuild.exe', 'User')
+            & "$bundle\setup.ps1"
+            if ([Environment]::GetEnvironmentVariable('Path', 'Machine') -ne $repaired) { throw 'Repeated setup changed PATH' }
+            if ($null -ne [Environment]::GetEnvironmentVariable('HSC_MSBUILD_EXE', 'User')) { throw 'An obsolete user HSC_MSBUILD_EXE still overrides the system setting' }
+          } finally { Remove-Item "$bundle\config\models.json" }
+          $after = @([Environment]::GetEnvironmentVariable('Path', 'Machine').Split(';') | Where-Object { $_ })
+          if (($after[0..($expectedPaths.Count - 1)] -join ';') -ne ($expectedPaths -join ';')) { throw 'Bundled tools and Visual Studio MSBuild must come first on system PATH' }
+          foreach ($dir in $expectedPaths) {
+            if (@($after | Where-Object { $_ -eq $dir }).Count -ne 1) { throw "System PATH must contain $dir exactly once" }
+          }
+          foreach ($entry in $before) { if ($after -notcontains $entry) { throw "Existing system PATH entry dropped: $entry" } }
+          if ([Environment]::GetEnvironmentVariable('PI_OFFLINE', 'Machine') -ne '1') { throw 'PI_OFFLINE was not set machine-wide' }
+          if ([Environment]::GetEnvironmentVariable('PI_CODING_AGENT_DIR', 'Machine') -ne "$bundle\config") { throw 'PI_CODING_AGENT_DIR was not set to the bundle config folder' }
+          $env:Path = ($after -join ';')
+          foreach ($tool in @('pi', 'python', 'fd', 'rg', 'svn', 'redis-cli', 'redis-server', 'redis-benchmark', 'redis-check-aof', 'redis-check-rdb', 'redis-sentinel', 'RedisService')) {
+            $source = (Get-Command $tool -ErrorAction Stop).Source
+            if (-not $source.StartsWith($bundle)) { throw "$tool resolved outside the bundle: $source" }
+          }
+          & fd --version; if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & rg --version; if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & svn --version --quiet; if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & redis-cli --version; if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & redis-server --version; if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & RedisService --version; if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & python -X utf8 -c "import redis, mcp; print('BUNDLED_PYTHON_REDIS_OK')"; if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $msbuild = [Environment]::GetEnvironmentVariable('HSC_MSBUILD_EXE', 'Machine')
+          if ($msbuild -ne $expectedMSBuild) { throw "Wrong system HSC_MSBUILD_EXE: $msbuild" }
+          if ((Get-Command MSBuild.exe -CommandType Application -ErrorAction Stop).Source -ne $msbuild) { throw 'MSBuild on PATH does not match the discovered Visual Studio installation' }
+          & MSBuild.exe -nologo -version; if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $project = Join-Path $env:RUNNER_TEMP 'msbuild-setup-smoke.proj'
+          '<Project DefaultTargets="Smoke"><Target Name="Smoke"><Message Text="MSBUILD_SETUP_OK" Importance="high" /></Target></Project>' | Set-Content -LiteralPath $project -Encoding UTF8
+          & MSBuild.exe $project -nologo
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          # The new global MSBuild setting must not break the separately bundled C# server SDK.
+          $env:TEST_BUNDLE = $bundle
+          $env:TEST_CLANGD = "$bundle\bin\clangd\bin\clangd.exe"
+          $env:TEST_DOTNET = "$bundle\runtime\dotnet\dotnet.exe"
+          node --experimental-strip-types tests/integration.ts
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Verify bundled Python Redis MCP against 100 modules
+        timeout-minutes: 3
+        shell: pwsh
+        run: |
+          python tests/build-center-mcp-bundle.py "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER\pi-offline-kit"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python tests/prompt-footprint.py "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER\pi-offline-kit" --output dist/prompt-footprint-win.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Exercise standalone pi through a local model API
+        if: ${{ success() && steps.build.outcome == 'success' }}
+        timeout-minutes: 8
+        shell: pwsh
+        run: |
+          # setup.ps1, then `pi` found through the machine PATH it registered.
+          python tests/pi-standalone.py "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER\pi-offline-kit"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          # Older releases set <bundle>\agent in user variables, overriding the correct system config path.
+          python tests/pi-standalone.py "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER\pi-offline-kit" --upgrade
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          # pi.exe run directly from another folder with the bundle registered only as a pi package.
+          python tests/pi-standalone.py "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER\pi-offline-kit" --direct
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      # Overlay update: only files that differ from the previous release, applied by setup.ps1 on top of that release.
+      - name: Build overlay update ZIP
+        timeout-minutes: 15
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $previous = @(gh release list --exclude-drafts --limit 5 --json tagName --jq '.[].tagName') | Where-Object { $_ -and $_ -ne $env:GITHUB_REF_NAME } | Select-Object -First 1
+          $arguments = @('.github/tools/make-update.py', '--new-zip', 'dist/pi-offline-kit-win-x64.zip', '--output-dir', 'dist')
+          if ($previous) {
+            New-Item -ItemType Directory -Force .cache/base | Out-Null
+            # Prefer the small manifest; fall back to the complete ZIP if it is unavailable.
+            gh release download $previous --pattern 'manifest-win-x64.json' --dir .cache/base --clobber
+            if ($LASTEXITCODE) {
+              $global:LASTEXITCODE = 0
+              gh release download $previous --pattern 'pi-offline-kit-win-x64.zip' --dir .cache/base --clobber
+              if ($LASTEXITCODE) { exit $LASTEXITCODE }
+              $base = (Get-ChildItem .cache/base -Filter '*-win-x64.zip' | Where-Object { $_.Name -notlike '*update-from*' } | Select-Object -First 1).FullName
+            } else { $base = '.cache/base/manifest-win-x64.json' }
+            $arguments += @('--base', $base, '--base-version', $previous)
+          }
+          python @arguments
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Verify overlay update applies with setup.ps1
+        if: ${{ hashFiles('dist/pi-offline-kit-update-from-*.zip') != '' }}
+        timeout-minutes: 8
+        shell: pwsh
+        run: |
+          # Last on purpose: setup.ps1 registers this second copy system-wide.
+          $parent = Join-Path $env:RUNNER_TEMP 'overlay update 한글'
+          Expand-Archive dist/pi-offline-kit-win-x64.zip -DestinationPath $parent
+          $bundle = Join-Path $parent 'pi-offline-kit'
+          python tests/update-overlay.py prepare $bundle dist/pi-offline-kit-win-x64.zip dist/overlay-test
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          Copy-Item "$bundle\config\models.example.json" "$bundle\config\models.json"
+          # A wrong base must be rejected without touching anything.
+          python -c "import pathlib,sys; p=pathlib.Path(sys.argv[1]); p.write_text(p.read_text(encoding='utf-8')+' ', encoding='utf-8')" "$bundle\manifest.json"
+          $rejected = $false
+          try { & "$bundle\setup.ps1" } catch { $rejected = $true }
+          if (-not $rejected) { throw 'An update was applied on top of the wrong base release' }
+          if (-not (Test-Path "$bundle\update\update.json")) { throw 'A rejected update must stay staged' }
+          python -c "import json,pathlib,sys; p=pathlib.Path(sys.argv[1]); p.write_bytes(pathlib.Path(sys.argv[2]).read_bytes())" "$bundle\manifest.json" dist/overlay-test/base-manifest.json
+          & "$bundle\setup.ps1"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python tests/update-overlay.py verify $bundle dist/pi-offline-kit-win-x64.zip
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & "$bundle\setup.ps1" -Check
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      # Tagged builds publish complete bundles to Releases rather than short-lived Actions artifacts.
+      - name: Publish verified bundle to GitHub Releases
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $assets = @('dist/pi-offline-kit-win-x64.zip', 'dist/pi-offline-kit-win-x64.zip.sha256', 'dist/manifest-win-x64.json') + @(Get-ChildItem dist -Filter 'pi-offline-kit-update-from-*' | ForEach-Object { "dist/$($_.Name)" })
+          gh release create "$env:GITHUB_REF_NAME" @assets --verify-tag --title "$env:GITHUB_REF_NAME" --generate-notes
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      # Other runs keep a short-lived copy for testing. A full storage quota must not hide the verification result above.
+      - uses: actions/upload-artifact@v4
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        continue-on-error: true
+        with:
+          name: pi-offline-kit-win-x64
+          path: |
+            dist/pi-offline-kit-win-x64.zip
+            dist/pi-offline-kit-win-x64.zip.sha256
+            dist/manifest-win-x64.json
+            dist/pi-offline-kit-update-from-*
+          compression-level: 0
+          retention-days: 7

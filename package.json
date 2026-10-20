@@ -1,0 +1,35 @@
+{
+  "name": "pi-offline-kit",
+  "private": true,
+  "type": "module",
+  "pi": {
+    "extensions": [
+      "./extensions/harness-env/index.ts",
+      "./extensions/cpp-csharp-lsp-lite/index.ts",
+      "./vendor/extensions/node_modules/pi-lens/dist/index.js",
+      "./vendor/extensions/node_modules/pi-subagents/index.js",
+      "./vendor/extensions/node_modules/@tian.zuo/pi-usage/index.ts",
+      "./vendor/extensions/node_modules/@juicesharp/rpiv-ask-user-question/index.ts",
+      "./vendor/extensions/node_modules/@juicesharp/rpiv-todo/index.ts",
+      "./extensions/verify-guard/index.ts",
+      "./vendor/extensions/node_modules/pi-allowlist-plugin/extensions/allowlist-gate/index.ts",
+      "./extensions/minimal-footer/index.ts",
+      "./extensions/tool-profile/index.ts"
+    ],
+    "skills": ["./skills"],
+    "prompts": []
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --test tests/lsp-client.test.ts tests/tool-profile.test.ts tests/verify-guard.test.ts tests/diagnostics-delta.test.ts tests/find-symbol.test.ts tests/harness-env.test.ts tests/file-encoding.test.ts tests/minimal-footer.test.ts tests/eval/eval.test.mjs",
+    "test:usage": "node --experimental-strip-types --test tests/usage-tracker.test.mjs",
+    "test:edge": "node --test tests/edge-mcp.test.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "1.3.0",
+    "@types/node": "22.15.30",
+    "iconv-lite": "0.7.3",
+    "typebox": "1.1.34",
+    "typescript": "5.8.3"
+  }
+}

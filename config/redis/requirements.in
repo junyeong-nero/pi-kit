@@ -1,0 +1,4 @@
+# Installed by CI only. Target PCs never run pip.
+mcp==1.30.0
+redis==8.1.0
+tzdata==2026.5

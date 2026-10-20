@@ -1,0 +1,20 @@
+{
+  "id": "cpp-multifile-bug",
+  "title": "다른 파일에 있는 원인 찾기 (trim 버그)",
+  "language": "cpp",
+  "prompt": "parse_setting(\"  timeout =  30  \")이 key \"timeout\", value \"30\"을 돌려줘야 하는데 테스트가 실패한다. 실패 원인을 찾아 고쳐라. test.cpp는 수정하지 마라.",
+  "judge": [
+    {
+      "name": "build",
+      "cmd": "{cxx} -std=c++17 -Wall -o check{exe} strutil.cpp config.cpp test.cpp"
+    },
+    {
+      "name": "test",
+      "cmd": ".{sep}check{exe}"
+    }
+  ],
+  "budget": {
+    "timeoutSec": 420,
+    "maxTurns": 30
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "lsp": { "enabled": false },
+  "tools": {
+    "lsp_navigation": { "enabled": false },
+    "lens_diagnostics": { "enabled": false },
+    "lens_diagnostic_mark": { "enabled": false },
+    "symbol_search": { "enabled": false },
+    "project_report": { "enabled": false },
+    "read_enclosing": { "enabled": false },
+    "effective_config": { "enabled": false },
+    "ast_grep_outline": { "enabled": false }
+  }
+}

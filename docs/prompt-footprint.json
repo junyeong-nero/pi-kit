@@ -1,0 +1,86 @@
+{
+  "environment": "macOS Node CLI; identical temporary project and local model API; user skills preserved",
+  "unit": "serialized Unicode characters (not tokenizer tokens)",
+  "before": {
+    "tool_count": 21,
+    "tools": [
+      "read",
+      "bash",
+      "edit",
+      "write",
+      "lsp_diagnostics",
+      "lsp_symbols",
+      "lsp_definition",
+      "lsp_references",
+      "lsp_hover",
+      "find_symbol",
+      "build_center_list_projects",
+      "build_center_find_modules",
+      "build_center_resolve_owner",
+      "build_center_get_results",
+      "build_center_get_log",
+      "module_report",
+      "read_symbol",
+      "pi_lens_activate_tools",
+      "bg_wait",
+      "subagents_enable",
+      "subagent_supervisor"
+    ],
+    "system_characters": 14299,
+    "tool_schema_characters": 18126,
+    "prefix_characters": 32425,
+    "skills_advertised": true,
+    "per_tool_characters": {
+      "read": 684,
+      "bash": 543,
+      "edit": 1179,
+      "write": 430,
+      "lsp_diagnostics": 319,
+      "lsp_symbols": 575,
+      "lsp_definition": 618,
+      "lsp_references": 634,
+      "lsp_hover": 623,
+      "find_symbol": 604,
+      "build_center_list_projects": 225,
+      "build_center_find_modules": 675,
+      "build_center_resolve_owner": 506,
+      "build_center_get_results": 857,
+      "build_center_get_log": 1033,
+      "module_report": 1886,
+      "read_symbol": 937,
+      "pi_lens_activate_tools": 435,
+      "bg_wait": 4428,
+      "subagents_enable": 459,
+      "subagent_supervisor": 454
+    }
+  },
+  "after": {
+    "tool_count": 7,
+    "tools": [
+      "read",
+      "bash",
+      "edit",
+      "write",
+      "lsp_diagnostics",
+      "find_symbol",
+      "harness_tools"
+    ],
+    "system_characters": 5898,
+    "tool_schema_characters": 4412,
+    "prefix_characters": 10310,
+    "skill_names": [
+      "find-skills",
+      "herdr"
+    ],
+    "per_tool_characters": {
+      "read": 684,
+      "bash": 543,
+      "edit": 1179,
+      "write": 430,
+      "lsp_diagnostics": 319,
+      "find_symbol": 604,
+      "harness_tools": 645
+    }
+  },
+  "prefix_reduction_percent": 68.2
+}

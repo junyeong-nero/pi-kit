@@ -1,0 +1,21 @@
+{
+  "providers": {
+    "corp": {
+      "name": "HSC-AI",
+      "baseUrl": "http://<사내API주소>/v1",
+      "api": "openai-completions",
+      "apiKey": "$CORP_LLM_API_KEY",
+      "models": [
+        {
+          "id": "<v1/models 에 나온 id>",
+          "name": "사내 코딩 모델",
+          "reasoning": false,
+          "input": ["text"],
+          "contextWindow": 131072,
+          "maxTokens": 8192,
+          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 }
+        }
+      ]
+    }
+  }
+}
