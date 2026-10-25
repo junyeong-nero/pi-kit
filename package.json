@@ -12,6 +12,7 @@
       "./vendor/extensions/node_modules/@juicesharp/rpiv-ask-user-question/index.ts",
       "./vendor/extensions/node_modules/@juicesharp/rpiv-todo/index.ts",
       "./extensions/verify-guard/index.ts",
+      "./extensions/auto-mode/index.ts",
       "./vendor/extensions/node_modules/pi-allowlist-plugin/extensions/allowlist-gate/index.ts",
       "./extensions/minimal-footer/index.ts",
       "./extensions/tool-profile/index.ts"
