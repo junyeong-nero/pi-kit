@@ -11,23 +11,21 @@ function setEnabled(enabled: boolean) {
 }
 
 export default function (pi: ExtensionAPI) {
-  pi.command({
-    name: "automode",
+  pi.registerCommand("automode", {
     description: "allowlist-gate on/off (auto/on=disable gate, off=enable gate)",
-    params: {
-      mode: { type: "string", enum: ["on", "off", "auto"] },
-    },
-    handler: (args: { mode?: string }) => {
-      const m = (args.mode ?? "").toLowerCase();
+    handler: async (args, ctx) => {
+      const m = args.trim().toLowerCase();
       if (m === "on" || m === "auto") {
         setEnabled(false);
-        return { content: [{ type: "text", text: "automode: ON (allowlist-gate disabled)" }] };
+        ctx.ui.notify("automode: ON (allowlist-gate disabled)", "info");
+        return;
       }
       if (m === "off") {
         setEnabled(true);
-        return { content: [{ type: "text", text: "automode: OFF (allowlist-gate enabled)" }] };
+        ctx.ui.notify("automode: OFF (allowlist-gate enabled)", "info");
+        return;
       }
-      return { content: [{ type: "text", text: "Usage: /automode on | off" }] };
+      ctx.ui.notify("Usage: /automode on | off", "info");
     },
   });
 }

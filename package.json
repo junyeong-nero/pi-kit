@@ -21,7 +21,7 @@
     "prompts": []
   },
   "scripts": {
-    "test": "node --experimental-strip-types --test tests/lsp-client.test.ts tests/tool-profile.test.ts tests/verify-guard.test.ts tests/diagnostics-delta.test.ts tests/find-symbol.test.ts tests/harness-env.test.ts tests/file-encoding.test.ts tests/minimal-footer.test.ts tests/eval/eval.test.mjs",
+    "test": "node --experimental-strip-types --test tests/auto-mode.test.ts tests/lsp-client.test.ts tests/tool-profile.test.ts tests/verify-guard.test.ts tests/diagnostics-delta.test.ts tests/find-symbol.test.ts tests/harness-env.test.ts tests/file-encoding.test.ts tests/minimal-footer.test.ts tests/eval/eval.test.mjs",
     "test:usage": "node --experimental-strip-types --test tests/usage-tracker.test.mjs",
     "test:edge": "node --test tests/edge-mcp.test.mjs",
     "typecheck": "tsc --noEmit"
