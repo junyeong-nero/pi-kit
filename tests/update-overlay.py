@@ -11,7 +11,7 @@ from pathlib import Path
 import sys
 import zipfile
 
-TOP = "pi-offline-kit"
+TOP = "pi-kit"
 STALE, EXTRA = "docs/tool-guide.md", "extensions/removed-by-update/index.ts"
 
 

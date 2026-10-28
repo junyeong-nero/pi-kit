@@ -12,7 +12,7 @@ from pathlib import Path
 import sys
 import zipfile
 
-TOP = "pi-offline-kit"
+TOP = "pi-kit"
 MANIFEST_ASSET = "manifest-win-x64.json"
 
 
@@ -53,7 +53,7 @@ def make_update(new_zip, base, base_version, output_dir):
     version = new.get("version", "dev")
     info = {"format": 1, "version": version, "base_version": base_version, "base_manifest_sha256": sha256(base_raw),
             "files": {path: new_files[path] for path in changed}, "remove": removed}
-    output = output_dir / f"pi-offline-kit-update-from-{base_version}-win-x64.zip"
+    output = output_dir / f"pi-kit-update-from-{base_version}-win-x64.zip"
     partial = output.with_suffix(".zip.partial")
     try:
         with zipfile.ZipFile(new_zip) as source, zipfile.ZipFile(partial, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as target:

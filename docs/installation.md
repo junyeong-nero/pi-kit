@@ -1,6 +1,6 @@
 # 설치와 설정
 
-폐쇄망 Windows PC에 pi-offline-kit를 처음 설치하고 설정·업데이트하는 방법입니다. 기능 소개는 [README](../README.md)에 있습니다.
+폐쇄망 Windows PC에 pi-kit를 처음 설치하고 설정·업데이트하는 방법입니다. 기능 소개는 [README](../README.md)에 있습니다.
 
 ## 처음 설치하기
 
@@ -17,19 +17,19 @@ Node.js·Python·Git 등 다른 프로그램은 설치하지 않아도 됩니다
 
 ### 1단계. 배포 ZIP 받기 (인터넷 PC)
 
-[GitHub Releases](https://github.com/junyeong-nero/pi-offline-kit/releases)에서 가장 최신 `v*` 릴리스의 **pi-offline-kit-win-x64.zip**을 받습니다. 같은 릴리스의 `.sha256` 파일과 해시를 비교하면 파일이 온전한지 확인할 수 있습니다.
+[GitHub Releases](https://github.com/junyeong-nero/pi-kit/releases)에서 가장 최신 `v*` 릴리스의 **pi-kit-win-x64.zip**을 받습니다. 같은 릴리스의 `.sha256` 파일과 해시를 비교하면 파일이 온전한지 확인할 수 있습니다.
 
 ```powershell
-Get-FileHash .\pi-offline-kit-win-x64.zip -Algorithm SHA256
+Get-FileHash .\pi-kit-win-x64.zip -Algorithm SHA256
 ```
 
-> GitHub 화면의 초록색 **Code → Download ZIP**(소스 코드)은 실행 파일이 없어 동작하지 않습니다. 반드시 Releases의 **pi-offline-kit-win-x64.zip**을 받으세요.
+> GitHub 화면의 초록색 **Code → Download ZIP**(소스 코드)은 실행 파일이 없어 동작하지 않습니다. 반드시 Releases의 **pi-kit-win-x64.zip**을 받으세요.
 
 배포 ZIP에는 pi, 언어 서버(clangd·csharp-ls), 서버용 .NET SDK, 확장, fd·rg·SVN·Redis 서버와 CLI, Python·redis-py·빌드센터 MCP, Playwright MCP와 전용 Node 런타임이 모두 들어 있습니다. Edge는 PC에 설치된 브라우저를 사용하며, 연결 허용 방법은 [Edge MCP 안내](../mcp/edge/README.md)에 있습니다. 전용 Node는 시스템 PATH에 추가하지 않습니다.
 
 ### 2단계. 폐쇄망 PC에 풀기
 
-ZIP을 폐쇄망 PC로 옮겨 원하는 위치에 풉니다. ZIP 안에 `pi-offline-kit` 폴더가 들어 있어서, 예를 들어 `D:\`에 풀면 `D:\pi-offline-kit`가 생깁니다. 이 문서는 이 경로를 예로 듭니다. `D:\pi-offline-kit\setup.ps1`이 보이면 맞게 푼 것입니다(압축 풀기 도구가 폴더를 하나 더 만들어 `...\pi-offline-kit\pi-offline-kit\`가 됐다면 안쪽 폴더를 쓰세요).
+ZIP을 폐쇄망 PC로 옮겨 원하는 위치에 풉니다. ZIP 안에 `pi-kit` 폴더가 들어 있어서, 예를 들어 `D:\`에 풀면 `D:\pi-kit`가 생깁니다. 이 문서는 이 경로를 예로 듭니다. `D:\pi-kit\setup.ps1`이 보이면 맞게 푼 것입니다(압축 풀기 도구가 폴더를 하나 더 만들어 `...\pi-kit\pi-kit\`가 됐다면 안쪽 폴더를 쓰세요).
 
 `setup.ps1`이 이 경로를 시스템에 등록하므로, 풀고 난 뒤 폴더를 옮기면 `setup.ps1`을 다시 실행해야 합니다.
 
@@ -37,14 +37,14 @@ ZIP을 폐쇄망 PC로 옮겨 원하는 위치에 풉니다. ZIP 안에 `pi-offl
 
 1. `config\models.example.json`을 같은 폴더에 `models.json`이라는 이름으로 복사합니다.
    ```powershell
-   cd D:\pi-offline-kit
+   cd D:\pi-kit
    Copy-Item config\models.example.json config\models.json
    ```
 2. `config\models.json`을 메모장 등으로 열어 두 곳을 고칩니다.
    - `"baseUrl"`: `http://<사내API주소>/v1` → 실제 사내 API 주소
    - `"id"`: `<v1/models 에 나온 id>` → 사용할 모델 ID
 
-   `"apiKey": "$CORP_LLM_API_KEY"`는 **그대로 둡니다.** 키는 파일에 적지 않고 다음 단계의 환경 변수에서 읽습니다. 모델의 컨텍스트 크기(`contextWindow`)·최대 출력(`maxTokens`)을 안내받았다면 함께 맞춥니다.
+   `"apiKey": "$CORP_LLM_API_KEY"`는 **그대로 둡니다.** 키는 파일에 적지 않고 다음 단계의 환경 변수에서 읽습니다. 모델의 컨텍스트 크기(`contextWindow`)·최대 출력(`maxTokens`)을 안내받았다면 함께 맞춥니다. `contextWindow`는 큰 파일을 한 번에 얼마나 읽을지 정하는 데도 쓰이므로 실제 서버 값과 다르면 너무 많이 또는 너무 적게 읽습니다.
 3. **관리자 권한으로 연** PowerShell에서 API 키를 시스템 변수로 등록합니다. 사용자 변수는 로그인할 때 초기화되는 PC가 있어서 시스템 변수를 씁니다.
    ```powershell
    setx /M CORP_LLM_API_KEY "<발급받은 API KEY>"
@@ -62,7 +62,7 @@ Invoke-RestMethod http://<사내API주소>/v1/models -Headers @{ Authorization =
 배포 폴더에서 PowerShell을 열고 아래 두 명령을 순서대로 실행합니다. 관리자 권한 확인 창이 뜨면 **예**를 누릅니다.
 
 ```powershell
-cd D:\pi-offline-kit
+cd D:\pi-kit
 Set-ExecutionPolicy -Scope Process Bypass -Force
 .\setup.ps1
 ```
@@ -82,8 +82,8 @@ Setup complete. Fully close your terminal application, reopen it, and run 'pi' i
 1. 터미널 프로그램(Windows Terminal, VS Code 등)을 **완전히 닫았다가 다시 엽니다.** 이미 열려 있던 창에는 새 환경 변수가 반영되지 않습니다.
 2. 제대로 등록됐는지 확인합니다.
    ```powershell
-   Get-Command pi | Select-Object Source   # D:\pi-offline-kit\bin\pi\pi.exe 여야 함
-   $env:PI_CODING_AGENT_DIR                # D:\pi-offline-kit\config 여야 함
+   Get-Command pi | Select-Object Source   # D:\pi-kit\bin\pi\pi.exe 여야 함
+   $env:PI_CODING_AGENT_DIR                # D:\pi-kit\config 여야 함
    ```
 3. 작업할 프로젝트 폴더에서 pi를 실행합니다.
    ```powershell
@@ -99,7 +99,7 @@ Setup complete. Fully close your terminal application, reopen it, and run 'pi' i
 작은 모델은 프로젝트 구조와 빌드 명령을 모르면 탐색에 시간을 쓰고 엉뚱한 명령을 실행합니다. 효과 대비 가장 손이 덜 가는 개선이므로 먼저 해 두기를 권합니다.
 
 ```powershell
-Copy-Item D:\pi-offline-kit\config\project-AGENTS.template.md D:\work\MyProject\AGENTS.md
+Copy-Item D:\pi-kit\config\project-AGENTS.template.md D:\work\MyProject\AGENTS.md
 ```
 
 [템플릿](../config/project-AGENTS.template.md)의 `<...>` 부분을 채우고 쓰지 않는 섹션은 지웁니다. 디렉터리 지도, 빌드·테스트 명령, 코딩 규칙, 수정 금지 경로, 작업 완료 조건을 적는 칸이 있습니다. 도구 사용법은 공통 가이드가 다루므로 여기에 다시 적지 않습니다.
@@ -107,7 +107,7 @@ Copy-Item D:\pi-offline-kit\config\project-AGENTS.template.md D:\work\MyProject\
 ## 사용할 때 알아 둘 것
 
 - **파일 수정·명령 실행은 승인을 묻습니다.** 모델이 `edit`·`write`나 허용 목록에 없는 PowerShell 명령을 실행하려 하면 승인 창이 뜹니다. **Allow once**(이번만) / **Allow for session**(이 세션 동안 같은 명령) / **Allow & save rule**(프로젝트 규칙으로 저장) / **Deny**(거부) 중에서 고릅니다. 파일 읽기·검색은 묻지 않습니다. 자세한 내용은 [도구 실행 승인](#도구-실행-승인)에 있습니다.
-- **먼저 계획만 받고 싶을 때:** `/skill:plan <작업>`은 코드를 고치지 않고 변경 계획만 설명합니다. 요청이 모호하면 `/skill:align <요청>`으로 목표와 범위부터 맞춥니다.
+- **먼저 계획만 받고 싶을 때:** `/plan <작업>`으로 계획 모드를 켜면 코드를 고치지 않고 변경 계획만 설명합니다. 계획이 끝나면 그대로 구현할지 묻고, `/plan`을 다시 입력하면 계획 모드가 꺼집니다.
 - **명령은 대화로 요청합니다.** 입력창의 `!`·`!!`는 Bash 기능이라 이 PC에서는 동작하지 않습니다. "빌드해 줘", "`svn status` 보여 줘"처럼 요청하세요.
 - **멈추기·종료:** 모델 작업을 멈추려면 `Esc`, pi를 끝내려면 `/quit`를 입력하거나 `Ctrl+C`를 두 번 누릅니다.
 - 모델이 빌드·진단 없이 C++·C# 수정을 끝내려 하면 확장이 검증을 한 번 더 진행시킵니다. 모델이 스스로 이어서 작업하는 것이니 기다리면 됩니다.
@@ -118,7 +118,7 @@ Copy-Item D:\pi-offline-kit\config\project-AGENTS.template.md D:\work\MyProject\
 |---|---|
 | `.\setup.ps1`에서 "스크립트를 실행할 수 없습니다" | 같은 창에서 `Set-ExecutionPolicy -Scope Process Bypass -Force`를 먼저 실행했는지 확인합니다. 그래도 막히면 그룹 정책으로 제한된 PC이므로 IT 담당자에게 문의합니다. |
 | `Copy config\models.example.json to config\models.json ...` | 3단계의 `config\models.json`이 없습니다. 파일 이름(`models.json.txt`가 아닌지)과 위치를 확인합니다. |
-| `Missing bundle file: ...` / `Invalid executable: ...` | 소스 코드 ZIP을 받았거나 압축이 덜 풀렸습니다. Releases의 **pi-offline-kit-win-x64.zip**을 다시 풉니다. `.\setup.ps1 -Check`는 아무것도 바꾸지 않고 파일만 확인합니다. |
+| `Missing bundle file: ...` / `Invalid executable: ...` | 소스 코드 ZIP을 받았거나 압축이 덜 풀렸습니다. Releases의 **pi-kit-win-x64.zip**을 다시 풉니다. `.\setup.ps1 -Check`는 아무것도 바꾸지 않고 파일만 확인합니다. |
 | `Administrator rights are required ...` | 관리자 권한 확인 창에서 **예**를 누르지 않았습니다. 다시 실행하거나 관리자 PowerShell에서 실행합니다. |
 | `pi`를 찾을 수 없다고 나옴 | 터미널 프로그램을 완전히 닫고 다시 엽니다. VS Code 등 IDE 안의 터미널이면 IDE도 다시 시작합니다. |
 | 옵션이 "unknown option"이거나 설명과 동작이 다름 | 다른 pi가 먼저 실행되는 경우입니다. `Get-Command pi -All`로 경로를 보고, 배포 폴더의 `bin\pi\pi.exe`가 아닌 것(npm으로 따로 설치한 pi 등)은 지우거나 `setup.ps1`을 다시 실행합니다. |
@@ -154,7 +154,7 @@ MSBuild는 기존 Visual Studio 설치 관리자의 `vswhere`로 최신 설치�
 
 ### 변경분만 업데이트하기
 
-이미 설치한 배포본이 있다면 매번 전체 ZIP을 옮기지 않아도 됩니다. 릴리스에는 이전 릴리스에서 바뀐 파일만 담은 **pi-offline-kit-update-from-<이전 버전>-win-x64.zip**이 함께 올라갑니다. 확장·설정·문서처럼 작은 파일의 변경은 보통 수 MB 이내입니다.
+이미 설치한 배포본이 있다면 매번 전체 ZIP을 옮기지 않아도 됩니다. 릴리스에는 이전 릴리스에서 바뀐 파일만 담은 **pi-kit-update-from-<이전 버전>-win-x64.zip**이 함께 올라갑니다. 확장·설정·문서처럼 작은 파일의 변경은 보통 수 MB 이내입니다.
 
 1. 설치된 배포본이 정확히 `<이전 버전>` 전체 ZIP이어야 합니다. 건너뛴 버전이 있으면 최신 전체 ZIP을 쓰세요.
 2. 업데이트 ZIP을 배포 폴더의 **상위 폴더**에 풉니다(전체 ZIP을 풀었던 위치). 폴더가 합쳐지고 `update\` 폴더만 생깁니다. 이 시점에는 동작이 바뀌지 않습니다. 배포 폴더 이름을 바꿨다면 압축 안의 `update` 폴더를 배포 폴더 안으로 옮기세요.
@@ -176,6 +176,7 @@ pi는 `PI_CODING_AGENT_DIR`이 가리키는 `<배포 폴더>\config` 한 곳만 
 | `lsp.json` | clangd·csharp-ls 실행 설정 | 서버 옵션을 바꿀 때 |
 | `pi-lens.json` | pi-lens 설정(숨길 도구 등) | 거의 없음 |
 | `extensions\subagent\config.json` | pi-subagents 설정 | 거의 없음 |
+| `extensions\pi-tool-repair.json` | pi-tool-repair 설정. `grammarRepair.enabled`가 `true`면 모델이 텍스트로 쓴 `<tool_call>` 같은 호출을 실제 도구 호출로 바꿈 | 거의 없음 |
 | `project-AGENTS.template.md` | 프로젝트별 AGENTS.md 템플릿 | 복사해서 사용 |
 | `offline-artifacts.lock.json`, `extensions\package*.json` | 배포 ZIP을 만들 때 쓰는 버전 고정 파일 | 고치지 않음 |
 

@@ -1,13 +1,12 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import fs from "fs";
+import { getAgentDir, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import fs from "node:fs";
+import { join } from "node:path";
 
-const GATE_PATH = "config/extensions/allowlist-gate.json";
-
-function setEnabled(enabled: boolean) {
-  const raw = fs.readFileSync(GATE_PATH, "utf8");
+function setEnabled(gatePath: string, enabled: boolean) {
+  const raw = fs.readFileSync(gatePath, "utf8");
   const cfg = JSON.parse(raw);
   cfg.enabled = enabled;
-  fs.writeFileSync(GATE_PATH, JSON.stringify(cfg, null, 2) + "\n");
+  fs.writeFileSync(gatePath, JSON.stringify(cfg, null, 2) + "\n");
 }
 
 export default function (pi: ExtensionAPI) {
@@ -15,17 +14,19 @@ export default function (pi: ExtensionAPI) {
     description: "allowlist-gate on/off (auto/on=disable gate, off=enable gate)",
     handler: async (args, ctx) => {
       const m = args.trim().toLowerCase();
-      if (m === "on" || m === "auto") {
-        setEnabled(false);
-        ctx.ui.notify("automode: ON (allowlist-gate disabled)", "info");
+      if (!["on", "auto", "off"].includes(m)) {
+        ctx.ui.notify("Usage: /automode on | off", "info");
         return;
       }
-      if (m === "off") {
-        setEnabled(true);
-        ctx.ui.notify("automode: OFF (allowlist-gate enabled)", "info");
+      const gatePath = join(getAgentDir(), "extensions", "allowlist-gate.json");
+      try {
+        setEnabled(gatePath, m === "off");
+      } catch (error) {
+        ctx.ui.notify(`automode: failed to update ${gatePath}: ${error instanceof Error ? error.message : String(error)}`, "error");
         return;
       }
-      ctx.ui.notify("Usage: /automode on | off", "info");
+      // allowlist-gate reads its configuration on every tool_call; no session reload is needed.
+      ctx.ui.notify(`automode: ${m === "off" ? "OFF" : "ON"} (global allowlist-gate ${m === "off" ? "enabled" : "disabled"}; effective on the next tool call unless overridden by project settings)`, "info");
     },
   });
 }

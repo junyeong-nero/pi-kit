@@ -18,12 +18,7 @@ try {
   const manifest = JSON.parse(readFileSync('package.json', 'utf8')).pi;
   assert.equal(manifest.extensions[0], './extensions/harness-env/index.ts', 'harness-env must load first to set defaults for later extensions');
   assert.equal(manifest.extensions.at(-1), './extensions/tool-profile/index.ts', 'tool-profile must run after upstream activation hooks');
-  assert.deepEqual(manifest.skills, ['./skills'], 'only the bundled skills folder');
-  // Skills are advertised in every prompt unless they are command-only, so each bundled skill must opt out.
-  for (const dir of readdirSync('skills', { withFileTypes: true }).filter(e => e.isDirectory())) {
-    const text = readFileSync(`skills/${dir.name}/SKILL.md`, 'utf8');
-    assert.match(text, /^disable-model-invocation: true$/m, `skills/${dir.name} must be command-only`);
-  }
+  assert.deepEqual(manifest.skills, [], 'no bundled skills');
   assert.deepEqual(manifest.prompts, [], 'no eager bundled prompt templates');
   for (const name of readdirSync('extensions', { withFileTypes: true }).filter(e => existsSync(`extensions/${e.name}/index.ts`)).map(e => e.name)) {
     assert.ok(manifest.extensions.includes(`./extensions/${name}/index.ts`), `extensions/${name} is missing from package.json pi.extensions`);
@@ -66,6 +61,22 @@ try {
     assert.equal(await gated(toolName, input), true, `asks: ${toolName}`);
   }
   assert.deepEqual(notices, [], 'bundled allowlist-gate.json loads without warnings');
+  const automode = loaded.extensions.find(extension => extension.path.replaceAll('\\', '/').endsWith('/extensions/auto-mode/index.ts')).commands.get('automode');
+  assert.ok(automode, 'automode command is registered');
+  for (const mode of ['on', 'auto']) {
+    await automode.handler(mode, gateContext);
+    assert.equal(await gated('write', { path: 'main.cpp', content: '' }), false, 'automode takes effect on the next call without reload');
+    await automode.handler('off', gateContext);
+    assert.equal(await gated('write', { path: 'main.cpp', content: '' }), true, 'automode off restores approval without reload');
+  }
+  assert.equal(manifest.extensions[1], './vendor/extensions/node_modules/pi-tool-repair/tool-repair.ts', 'pi-tool-repair fixes tool calls right after harness-env');
+  assert.ok(hooksOf('harness-env').includes('message_end'), 'harness-env repairs powershell argument names');
+  const repair = loaded.extensions.find(extension => extension.path.replaceAll('\\', '/').endsWith('/pi-tool-repair/tool-repair.ts'));
+  assert.ok(repair?.handlers.has('message_end'), 'pi-tool-repair hooks message_end');
+  assert.ok(hooksOf('read-budget').includes('tool_call') && hooksOf('read-budget').includes('tool_result'), 'read-budget trims large reads and notes it');
+  const plan = loaded.extensions.find(extension => extension.path.replaceAll('\\', '/').endsWith('/extensions/plan-mode/index.ts'));
+  assert.ok(plan?.commands.has('plan') && plan.handlers.has('tool_call'), 'plan-mode registers /plan and guards tool calls');
+  assert.ok(manifest.extensions.indexOf('./extensions/plan-mode/index.ts') < manifest.extensions.findIndex(path => path.includes('allowlist-gate')), 'plan-mode blocks before allowlist-gate asks for approval');
   const tools = loaded.extensions.flatMap(extension => [...extension.tools.keys()]);
   assert.equal(new Set(tools).size, tools.length, 'No duplicate tool registrations');
   for (const name of ['lsp_diagnostics', 'find_symbol', 'module_report', 'read_symbol', 'ast_grep_search', 'subagent', 'ask_user_question', 'todo']) {

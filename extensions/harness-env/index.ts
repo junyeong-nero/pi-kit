@@ -7,6 +7,7 @@ import { createPowerShellToolDefinition, getAgentDir, type ExtensionAPI } from "
 import { formatScan, scanEncodings } from "./encoding.ts";
 import { createEncodingAwareTools } from "./file-tools.ts";
 import { createWindowsPowerShellOperations } from "./powershell.ts";
+import { repairPowerShellArgs } from "./tool-args.ts";
 
 export const GUIDE_MARKER = "# 도구 사용 규칙";
 
@@ -80,6 +81,11 @@ export default function (pi: ExtensionAPI) {
 		// Keep pi's schema, rendering, truncation and session environment; replace only shell discovery/execution.
 		pi.registerTool(createPowerShellToolDefinition(process.cwd(), { operations: createWindowsPowerShellOperations() }));
 	}
+	// 약한 모델이 powershell에 cmd 같은 다른 인자 이름을 쓰면 실행 전에 command로 바꾼다.
+	pi.on("message_end", (event) => {
+		const message = repairPowerShellArgs(event.message);
+		return message ? { message } : undefined;
+	});
 	pi.on("session_start", () => {
 		const tools = windowsToolSet(pi.getActiveTools(), pi.getAllTools().map((tool) => tool.name));
 		if (tools) pi.setActiveTools(tools);

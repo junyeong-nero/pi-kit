@@ -44,7 +44,7 @@ Visual Studio generator는 이 옵션을 써도 `compile_commands.json`을 만�
 - **버전 고정:** 실행 파일은 [config/offline-artifacts.lock.json](../config/offline-artifacts.lock.json), 확장 의존성은 `config/extensions/package-lock.json`, Python 패키지는 `config/redis/requirements.lock`에 버전과 해시를 고정합니다.
 - **ZIP에서 빼는 것:** 실행 파일은 Git에 넣지 않습니다. 실제 `models.json`, `agent/`, `config/` 아래 세션·캐시, 실제 Redis 매핑(`server_IP_mappings.json`·`owners.json`)은 ZIP에도 넣지 않습니다.
 
-ZIP에는 pi, fd·rg, SVN, Redis 서버와 CLI, clangd, csharp-ls, 서버용 .NET SDK, 동봉 Python과 MCP용 Node, 직접 만든 확장, pi-lens·pi-subagents·pi-usage·pi-allowlist-plugin·rpiv-ask-user-question·rpiv-todo, Playwright MCP, Windows용 네이티브 파일과 WASM 리소스가 들어갑니다.
+ZIP에는 pi, fd·rg, SVN, Redis 서버와 CLI, clangd, csharp-ls, 서버용 .NET SDK, 동봉 Python과 MCP용 Node, 직접 만든 확장, pi-lens·pi-subagents·pi-usage·pi-allowlist-plugin·pi-tool-repair·rpiv-ask-user-question·rpiv-todo, Playwright MCP, Windows용 네이티브 파일과 WASM 리소스가 들어갑니다.
 
 ### Actions를 쓸 수 없을 때: Windows 로컬 패키징
 
@@ -59,9 +59,9 @@ ZIP에는 pi, fd·rg, SVN, Redis 서버와 CLI, clangd, csharp-ls, 서버용 .NE
 일반 PowerShell에서 다음을 실행합니다. 기존 설치 폴더가 아닌 **별도의 새 작업 폴더**를 사용하세요. 패키징은 작업 폴더의 `bin/`, `runtime/`, `vendor/extensions/`를 다시 준비합니다. 아래 경로는 예시이며, 이미 clone한 개발용 저장소가 있다면 그 폴더에서 시작할 수 있습니다.
 
 ```powershell
-git clone https://github.com/junyeong-nero/pi-offline-kit.git C:\pi-offline-build
+git clone https://github.com/junyeong-nero/pi-kit.git C:\pi-kit-build
 if ($LASTEXITCODE) { throw 'git clone failed' }
-Set-Location C:\pi-offline-build
+Set-Location C:\pi-kit-build
 
 node --version
 py -3.13 -c "import struct, sys; assert sys.version_info[:2] == (3, 13) and struct.calcsize('P') == 8; print(sys.version)"
@@ -96,7 +96,7 @@ exec(compile(code, '.github/workflows/offline.yml:Assemble complete ZIP', 'exec'
 if ($LASTEXITCODE) { throw 'bundle packaging failed' }
 ```
 
-생성 파일은 `dist/pi-offline-kit-win-x64.zip`과 `.zip.sha256`입니다. HUD·토큰 사용량 조회·Edge MCP뿐 아니라 동봉 실행 파일·의존성을 모두 포함합니다. 다운로드·압축 시간과 디스크 공간이 필요합니다. 사내 TLS 검사나 다운로드 차단으로 실패하면 인증서 검증을 끄지 말고 네트워크 설정을 확인하세요.
+생성 파일은 `dist/pi-kit-win-x64.zip`과 `.zip.sha256`입니다. HUD·토큰 사용량 조회·Edge MCP뿐 아니라 동봉 실행 파일·의존성을 모두 포함합니다. 다운로드·압축 시간과 디스크 공간이 필요합니다. 사내 TLS 검사나 다운로드 차단으로 실패하면 인증서 검증을 끄지 말고 네트워크 설정을 확인하세요.
 
 #### 다른 경로에 풀어 검증하기
 
@@ -106,8 +106,8 @@ if ($LASTEXITCODE) { throw 'bundle packaging failed' }
 node tests/extensions-loader.mjs
 if ($LASTEXITCODE) { throw 'extension loading failed' }
 $checkRoot = Join-Path $env:TEMP ('pi 로컬 검증 ' + [guid]::NewGuid().ToString('N'))
-Expand-Archive -LiteralPath .\dist\pi-offline-kit-win-x64.zip -DestinationPath $checkRoot -ErrorAction Stop
-$bundle = Join-Path $checkRoot 'pi-offline-kit'
+Expand-Archive -LiteralPath .\dist\pi-kit-win-x64.zip -DestinationPath $checkRoot -ErrorAction Stop
+$bundle = Join-Path $checkRoot 'pi-kit'
 
 powershell -NoProfile -ExecutionPolicy Bypass -File "$bundle\setup.ps1" -Check
 if ($LASTEXITCODE) { throw 'required bundle files are missing' }
@@ -136,7 +136,7 @@ try {
 }
 ```
 
-검증 성공 후 `dist/pi-offline-kit-win-x64.zip`을 폐쇄망으로 옮깁니다. 대상 PC에서는 새 폴더에 풀고 사내 API를 설정한 뒤 `setup.ps1`을 실행합니다. 기존 `config/models.json`과 세션은 별도로 보존하고 소스 ZIP이나 테스트 폴더를 배포본 대신 사용하지 마세요.
+검증 성공 후 `dist/pi-kit-win-x64.zip`을 폐쇄망으로 옮깁니다. 대상 PC에서는 새 폴더에 풀고 사내 API를 설정한 뒤 `setup.ps1`을 실행합니다. 기존 `config/models.json`과 세션은 별도로 보존하고 소스 ZIP이나 테스트 폴더를 배포본 대신 사용하지 마세요.
 
 이 절차는 전체 CI의 방화벽 차단·Redis/SVN·시스템 설치 및 업데이트 검증을 모두 재현하지 않습니다. 시스템 PATH·설정 적용까지 검사하려면 아래 개발 테스트의 `tests/pi-standalone.py <배포 폴더>`를 관리자 PowerShell에서 실행할 수 있지만, **빌드 PC의 시스템 변수가 해당 임시 배포 폴더를 가리키도록 바뀝니다.** 일상 개발 PC에서는 이 부작용을 확인한 뒤 선택하세요. Windows 로컬 검증 결과와 CI 미실행 사실은 구분해 기록합니다.
 

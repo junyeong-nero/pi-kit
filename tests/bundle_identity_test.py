@@ -9,7 +9,7 @@ import unittest
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-NAME = "pi-offline-kit"
+NAME = "pi-kit"
 
 
 class BundleIdentity(unittest.TestCase):
@@ -22,7 +22,7 @@ class BundleIdentity(unittest.TestCase):
         spec.loader.exec_module(self.generator)
 
     def new_zip(self):
-        files = {"package.json": b'{"name":"pi-offline-kit"}', "docs/example.md": b"new"}
+        files = {"package.json": b'{"name":"pi-kit"}', "docs/example.md": b"new"}
         manifest = {"version": "v0.2.0", "files": {
             path: hashlib.sha256(data).hexdigest() for path, data in files.items()
         }}

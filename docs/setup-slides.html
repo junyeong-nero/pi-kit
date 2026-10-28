@@ -199,7 +199,7 @@
 <div class="toc"><a href="#3">문제 배경</a><a href="#7">설계 선택</a><a href="#9">LSP</a><a href="#15">검증</a><a href="#19">설치 부록</a>
 </div>
 </div>
-<div class="meta"><span class="pill">Windows x64</span><span class="pill">사내 모델 API</span><span class="pill">오프라인 배포</span><span class="pill">pi 1.3.0</span>
+<div class="meta"><span class="pill">Windows x64</span><span class="pill">사내 모델 API</span><span class="pill">오프라인 배포</span><span class="pill">pi 1.4.0</span>
 </div>
 <div class="foot"><span>기술 검토 및 구현 보고</span><span class="page"></span>
 </div>
@@ -415,7 +415,7 @@
 </tr>
 </tbody>
 </table>
-<p class="source">근거: 동봉 pi 1.3.0 문서 및 현재 저장소 구현. 제품 간 성능 비교 실험은 수행하지 않음.</p>
+<p class="source">근거: 동봉 pi 1.4.0 문서 및 현재 저장소 구현. 제품 간 성능 비교 실험은 수행하지 않음.</p>
 <p class="takeaway">선택의 대가: 확장 API 호환성과 Windows 동작은 배포자가 계속 검증해야 한다.</p>
 </div>
 <div class="foot"><span>cpp-csharp-lsp-lite · 기술 검토 및 구현 · 2026.09</span><span class="page"></span>
@@ -693,7 +693,7 @@ buffer.read();  <span class="c">// Buffer::read</span>
 <td>세 확장 동시 로딩</td>
 <td><span class="label pass">로컬 통과</span>
 </td>
-<td>도구 중복 없음, pi 1.3.0 로더</td>
+<td>도구 중복 없음, pi 1.4.0 로더</td>
 </tr>
 <tr>
 <td>실제 도구 호출·서브에이전트</td>
@@ -711,7 +711,7 @@ buffer.read();  <span class="c">// Buffer::read</span>
 <td>새 확장 포함 Windows 실행</td>
 <td><span class="label pending">새 저장소에서 재검증 필요</span>
 </td>
-<td><a href="https://github.com/junyeong-nero/pi-offline-kit/actions/workflows/offline.yml">현재 Windows CI 실행 결과 확인</a>
+<td><a href="https://github.com/junyeong-nero/pi-kit/actions/workflows/offline.yml">현재 Windows CI 실행 결과 확인</a>
 </td>
 </tr>
 <tr>
@@ -863,8 +863,8 @@ pi
 <div class="eyebrow">부록 B · 방산망 실행</div>
 <h2>압축 해제 → 사내 모델 설정 → setup.ps1 → pi</h2>
 <div class="body">
-<pre style="font-size:16px"><span class="p">PS&gt;</span> Expand-Archive .\pi-offline-kit-win-x64.zip -DestinationPath D:\
-<span class="p">PS&gt;</span> cd D:\pi-offline-kit
+<pre style="font-size:16px"><span class="p">PS&gt;</span> Expand-Archive .\pi-kit-win-x64.zip -DestinationPath D:\
+<span class="p">PS&gt;</span> cd D:\pi-kit
 <span class="p">PS&gt;</span> Copy-Item config\models.example.json config\models.json
 <span class="c"># config\models.json의 baseUrl / model id를 사내 제공 값으로 편집</span>
 <span class="p">PS&gt;</span> setx /M CORP_LLM_API_KEY "&lt;발급받은 API KEY&gt;"   <span class="c"># 관리자 터미널</span>
@@ -956,7 +956,7 @@ pi
 </tr>
 <tr>
 <td>pi 실행·확장</td>
-<td><a href="../bin/pi/docs/extensions.md">동봉 pi 1.3.0 extension 문서</a> · <a href="../extensions/cpp-csharp-lsp-lite/README.md">LSP 연결 문서</a>
+<td><a href="../bin/pi/docs/extensions.md">동봉 pi 1.4.0 extension 문서</a> · <a href="../extensions/cpp-csharp-lsp-lite/README.md">LSP 연결 문서</a>
 </td>
 </tr>
 <tr>
@@ -971,7 +971,7 @@ pi
 </tr>
 <tr>
 <td>검증·라이선스</td>
-<td><a href="https://github.com/junyeong-nero/pi-offline-kit/actions/workflows/offline.yml">Windows CI</a> · tests/ · <a href="../third_party/README.md">third_party</a>
+<td><a href="https://github.com/junyeong-nero/pi-kit/actions/workflows/offline.yml">Windows CI</a> · tests/ · <a href="../third_party/README.md">third_party</a>
 </td>
 </tr>
 </table>

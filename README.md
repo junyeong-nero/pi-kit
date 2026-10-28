@@ -1,4 +1,4 @@
-# pi-offline-kit
+# pi-kit
 
 폐쇄망 Windows PC에서 사내 AI 모델로 C++·C# 코드를 읽고 고치기 위한 pi 배포본입니다. 언어 서버로 정의·참조·타입을 조회하고, 작은 로컬 모델이 흔히 저지르는 실수(검증 없이 끝내기, 같은 실패 반복, 긴 출력에 묻히기)를 확장이 잡아 줍니다.
 
@@ -6,20 +6,11 @@
 
 완성 ZIP은 아래 Releases에서 배포합니다. 아직 Release가 없다면 첫 Windows 빌드·검증과 게시가 끝나지 않은 상태입니다. 소스 ZIP으로 대신 설치하지 마세요.
 
-1. [GitHub Releases](https://github.com/junyeong-nero/pi-offline-kit/releases)에서 최신 `v*` 릴리스의 **pi-offline-kit-win-x64.zip**을 받습니다. GitHub의 소스 코드 **Download ZIP**은 실행할 수 없습니다.
+1. [GitHub Releases](https://github.com/junyeong-nero/pi-kit/releases)에서 최신 `v*` 릴리스의 **pi-kit-win-x64.zip**을 받습니다. GitHub의 소스 코드 **Download ZIP**은 실행할 수 없습니다.
 2. 폐쇄망 PC에 풀고 `config\models.json`에 사내 API 주소·모델을 적은 뒤 API 키를 시스템 변수로 등록합니다.
 3. 배포 폴더에서 `.\setup.ps1`을 한 번 실행하고, 새 터미널의 아무 폴더에서 `pi`를 실행합니다.
 
 ZIP에 pi, 언어 서버, SDK, 확장과 동봉 도구가 모두 들어 있어 추가로 설치할 것이 없습니다. 단계별 명령, 문제 해결, 업데이트, SVN·Redis 사용법은 [설치와 설정](docs/installation.md)에 있습니다.
-
-## 스킬 (명령으로만 실행)
-
-| 명령 | 하는 일 |
-| --- | --- |
-| `/skill:plan <작업>` | 구현하지 않고 현재 코드를 조사해 어떻게 구현할지(변경 계획·위험·검증)만 설명합니다. 승인 전에는 파일을 고치지 않습니다. |
-| `/skill:align <요청>` | 요청을 어떻게 이해했는지 말하고, 한 번에 하나씩 질문하며 목표·범위·성공 기준을 합의합니다. 합의 요약을 확인받으면 멈춥니다. |
-
-두 스킬은 프롬프트에 광고되지 않아 토큰을 쓰지 않습니다. 내용은 `skills\<이름>\SKILL.md`에 있습니다.
 
 ## 도구 사용 가이드
 
@@ -42,6 +33,10 @@ ZIP에 pi, 언어 서버, SDK, 확장과 동봉 도구가 모두 들어 있어 �
 | [cpp-csharp-lsp-lite](extensions/cpp-csharp-lsp-lite/README.md) | clangd·csharp-ls 연결. 정의·참조·타입 조회, 이름만으로 정의와 참조를 찾는 `find_symbol`. 편집 직후 진단을 결과에 붙이고 첫 줄에 오류 증감을 표시 |
 | verify-guard | C/C++/C# 소스·프로젝트 파일(`.cpp`·`.h`·`.cs`·`.csproj`·`.sln`·`CMakeLists.txt` 등)을 고친 뒤 빌드·진단 없이 끝내려 하면 한 턴 더 진행해 검증하게 함. 빌드가 실패한 채 끝내려 하면 첫 오류를 보여 주고 수정·재빌드로 이어감 (프롬프트당 최대 5회) |
 | [allowlist-gate](https://github.com/goldfix/pi-allowlist-plugin) | 허용 목록에 없는 도구 호출을 실행 전에 사용자에게 승인받음. `edit`·`write`·`powershell`·`subagent` 등이 대상이고 읽기 전용 명령·도구는 묻지 않음 ([승인 방법](docs/installation.md#도구-실행-승인)) |
+| read-budget | 큰 파일을 통째로 `read`하지 않게 함. `models.json`의 `contextWindow`와 지금까지 쓴 컨텍스트를 보고, 한 번에 읽을 양(전체 창의 15%와 남은 여유의 25% 중 작은 값)을 넘으면 호출을 막지 않고 `limit`을 줄여 앞부분만 읽힘. 결과 끝에 이어 읽을 `offset`과 안내가 붙음. CP949·UTF-16 파일도 모델이 받는 UTF-8 크기로 계산 |
+| plan-mode | `/plan`으로 계획 모드를 켜고 끔. `/plan <작업>`은 켜고 바로 계획을 요청. 켜져 있으면 `edit`·`write`, 파일을 바꾸는 PowerShell 명령, 하위 에이전트·Edge MCP 도구를 막고 읽기·검색·빌드센터 조회와 조회 명령(`Get-Content`, `rg`, `git diff` 등)만 허용. 계획이 끝나면 계획 모드를 유지할지, 끄고 그 계획대로 구현할지 물음 |
+| [pi-tool-repair](https://github.com/monotykamary/pi-tool-repair) | 모델이 도구 인자를 틀리게 보내면 실행 전에 고침: `file_path`→`path` 같은 인자 이름, 문자열로 보낸 배열·숫자, `read_1_2` 같은 도구 이름, 텍스트로 쓴 `<tool_call>` 호출. `powershell`의 `cmd`→`command`는 harness-env가 고침. 설정은 `config\extensions\pi-tool-repair.json` |
+| auto-mode | `/automode on` 또는 `auto`로 전역 승인 게이트를 끄고, `/automode off`로 다시 켬. pi 설정 폴더에 저장하며 리로드 없이 다음 도구 호출부터 반영. 같은 설정을 쓰는 다른 세션에도 적용되고, 신뢰된 프로젝트의 별도 설정이 있으면 그 설정이 우선 |
 | minimal-footer | 맥북과 같은 한 줄 HUD: `[모델 ◔ 사고 수준] 컨텍스트 막대 사용률% \| 폴더 git:(브랜치)`. `pi-usage-bar`와 다른 확장 상태 줄은 표시하지 않으며 `/tokens` 조회는 유지 |
 | tool-profile | 모델에 보이는 도구를 기본 묶음으로 줄이고, `harness_tools`로 `code`·`ast`·`subagents` 그룹을 필요할 때 켬 |
 | pi-lens | 코드 구조 분석(`module_report`, `read_symbol` 등). 역할이 겹치는 도구 일부는 [기본으로 숨김](docs/tool-exposure.md) |

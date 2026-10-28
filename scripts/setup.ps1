@@ -60,7 +60,7 @@ if (-not $Check -and -not $SystemOnly -and (Test-Path -LiteralPath $updateInfo -
     }
 }
 $required = @("package.json", "extensions\harness-env\index.ts", "bin\pi\pi.exe", "bin\fd.exe", "bin\rg.exe", "bin\clangd\bin\clangd.exe",
-    "extensions\tool-profile\index.ts", "extensions\minimal-footer\index.ts", "docs\tool-guide.md", "skills\plan\SKILL.md", "skills\align\SKILL.md",
+    "extensions\tool-profile\index.ts", "extensions\minimal-footer\index.ts", "extensions\plan-mode\index.ts", "extensions\read-budget\index.ts", "docs\tool-guide.md",
     "runtime\python\python.exe", "runtime\python\python313.dll", "runtime\python\python313.zip", "runtime\python\python313._pth",
     "runtime\python\Lib\site-packages\redis\__init__.py", "runtime\python\Lib\site-packages\mcp\__init__.py",
     "runtime\python\Lib\site-packages\tzdata\__init__.py",
@@ -87,7 +87,8 @@ $required = @("package.json", "extensions\harness-env\index.ts", "bin\pi\pi.exe"
     "vendor\extensions\node_modules\@juicesharp\rpiv-todo\index.ts",
     "config\project-AGENTS.template.md",
     "extensions\verify-guard\index.ts",
-    "vendor\extensions\node_modules\pi-allowlist-plugin\extensions\allowlist-gate\index.ts", "config\extensions\allowlist-gate.json")
+    "vendor\extensions\node_modules\pi-allowlist-plugin\extensions\allowlist-gate\index.ts", "config\extensions\allowlist-gate.json",
+    "vendor\extensions\node_modules\pi-tool-repair\tool-repair.ts", "extensions\harness-env\tool-args.ts", "config\extensions\pi-tool-repair.json")
 foreach ($item in $required) {
     $path = Join-Path $BundleRoot $item
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Missing bundle file: $item. Use the complete offline release ZIP." }

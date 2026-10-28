@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22.19.0'
+          node-version: '26.12.1'
           cache: npm
       - uses: actions/setup-python@v5
         with:
@@ -97,7 +97,7 @@ jobs:
                   if offline:
                       raise FileNotFoundError(f"Missing cache: {target}")
                   print(f"Downloading {name} {artifact['version']} ...", flush=True)
-                  request = urllib.request.Request(artifact["url"], headers={"User-Agent": "pi-offline-kit-offline-builder"})
+                  request = urllib.request.Request(artifact["url"], headers={"User-Agent": "pi-kit-offline-builder"})
                   partial = target.with_suffix(".partial")
                   try:
                       with urllib.request.urlopen(request, context=ssl.create_default_context(), timeout=120) as source, partial.open("wb") as out:
@@ -157,7 +157,7 @@ jobs:
                   subprocess.run([str(candidates[-1]), f"-inputresource:{executable};#1",
                                   "-manifest", str(manifest), f"-outputresource:{executable};#1"], check=True)
               (destination / "HARNESS-MODIFICATIONS.txt").write_text(
-                  "pi-offline-kit modifies the embedded application manifests of bin/*.exe to enable "
+                  "pi-kit modifies the embedded application manifests of bin/*.exe to enable "
                   "the UTF-8 active code page (Windows 10 version 1903 or later). "
                   "Existing manifest entries, DLLs and Licenses are preserved. "
                   "This supports Unicode bundle and working-copy paths without changing system locale.\n",
@@ -348,7 +348,7 @@ jobs:
               output = Path(output).resolve()
               output.parent.mkdir(parents=True, exist_ok=True)
               with tempfile.TemporaryDirectory(prefix="harness-package-", dir=cache) as tmp:
-                  stage = Path(tmp) / "pi-offline-kit"
+                  stage = Path(tmp) / "pi-kit"
                   stage.mkdir()
                   ignores = {
                       "tests/fixtures": ("obj", "bin"),
@@ -364,7 +364,7 @@ jobs:
                       if relative == "config/redis":
                           patterns.extend(("server_IP_mappings.json", "owners.json", "cache"))
                       return shutil.ignore_patterns(*patterns)(directory, names)
-                  for relative in ("bin/pi", "bin/clangd", "bin/csharp-ls", "bin/svn", "bin/redis", "runtime/dotnet", "runtime/python", "runtime/node", "vendor/extensions", "extensions", "mcp", "skills", "config", "scripts", "docs", "third_party", "tests/fixtures"):
+                  for relative in ("bin/pi", "bin/clangd", "bin/csharp-ls", "bin/svn", "bin/redis", "runtime/dotnet", "runtime/python", "runtime/node", "vendor/extensions", "extensions", "mcp", "config", "scripts", "docs", "third_party", "tests/fixtures"):
                       shutil.copytree(ROOT / relative, stage / relative, ignore=ignore_files)
                   for relative in ("setup.ps1", "README.md", "package.json", "bin/fd.exe", "bin/rg.exe"):
                       shutil.copy2(ROOT / relative, stage / relative)
@@ -392,7 +392,7 @@ jobs:
 
           if __name__ == "__main__":
               parser = argparse.ArgumentParser(description=__doc__)
-              parser.add_argument("--output", default=str(ROOT / "dist/pi-offline-kit-win-x64.zip"))
+              parser.add_argument("--output", default=str(ROOT / "dist/pi-kit-win-x64.zip"))
               parser.add_argument("--no-download", action="store_true")
               parser.add_argument("--prepare-only", action="store_true", help="Extract locked runtime distributions without creating the final ZIP")
               parser.add_argument("--extensions-only", action="store_true", help="Prepare only the locked Windows extension packages")
@@ -409,8 +409,8 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           node tests/extensions-loader.mjs
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          Expand-Archive dist/pi-offline-kit-win-x64.zip -DestinationPath "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER"
-          $env:USAGE_TEST_BUNDLE = "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER\pi-offline-kit"
+          Expand-Archive dist/pi-kit-win-x64.zip -DestinationPath "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER"
+          $env:USAGE_TEST_BUNDLE = "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER\pi-kit"
           $env:EDGE_TEST_BUNDLE = $env:USAGE_TEST_BUNDLE
           try {
             npm run test:usage
@@ -425,13 +425,13 @@ jobs:
         timeout-minutes: 6
         shell: powershell
         run: |
-          $bundle = "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER\pi-offline-kit"
+          $bundle = "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER\pi-kit"
           $programs = @("$bundle\bin\pi\pi.exe", "$bundle\bin\clangd\bin\clangd.exe", "$bundle\runtime\dotnet\dotnet.exe", "$bundle\runtime\node\node.exe", "$bundle\bin\svn\bin\svn.exe")
           $programs += @(Get-ChildItem "$bundle\bin\csharp-ls" -Filter '*.exe' -Recurse | ForEach-Object FullName)
           $rules = @()
           try {
             foreach ($program in $programs) {
-              $name = "pi-offline-kit-" + [guid]::NewGuid().ToString('N')
+              $name = "pi-kit-" + [guid]::NewGuid().ToString('N')
               New-NetFirewallRule -Name $name -DisplayName $name -Direction Outbound -Program $program -Action Block | Out-Null
               $rules += $name
             }
@@ -455,12 +455,12 @@ jobs:
         timeout-minutes: 2
         shell: powershell
         run: |
-          python tests/redis-bundle.py "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER\pi-offline-kit" .cache/offline/redis.zip
+          python tests/redis-bundle.py "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER\pi-kit" .cache/offline/redis.zip
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Register the bundle system-wide with setup.ps1
         shell: powershell
         run: |
-          $bundle = "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER\pi-offline-kit"
+          $bundle = "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER\pi-kit"
           Copy-Item "$bundle\config\models.example.json" "$bundle\config\models.json"
           $before = @([Environment]::GetEnvironmentVariable('Path', 'Machine').Split(';') | Where-Object { $_ })
           $bundledDirs = @("$bundle\bin", "$bundle\bin\pi", "$bundle\bin\svn\bin", "$bundle\bin\redis", "$bundle\runtime\python", "$bundle\vendor\extensions\node_modules\@ast-grep\cli")
@@ -518,9 +518,9 @@ jobs:
         timeout-minutes: 3
         shell: pwsh
         run: |
-          python tests/build-center-mcp-bundle.py "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER\pi-offline-kit"
+          python tests/build-center-mcp-bundle.py "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER\pi-kit"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          python tests/prompt-footprint.py "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER\pi-offline-kit" --output dist/prompt-footprint-win.json
+          python tests/prompt-footprint.py "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER\pi-kit" --output dist/prompt-footprint-win.json
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Exercise standalone pi through a local model API
         if: ${{ success() && steps.build.outcome == 'success' }}
@@ -528,13 +528,13 @@ jobs:
         shell: pwsh
         run: |
           # setup.ps1, then `pi` found through the machine PATH it registered.
-          python tests/pi-standalone.py "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER\pi-offline-kit"
+          python tests/pi-standalone.py "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER\pi-kit"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           # Older releases set <bundle>\agent in user variables, overriding the correct system config path.
-          python tests/pi-standalone.py "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER\pi-offline-kit" --upgrade
+          python tests/pi-standalone.py "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER\pi-kit" --upgrade
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           # pi.exe run directly from another folder with the bundle registered only as a pi package.
-          python tests/pi-standalone.py "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER\pi-offline-kit" --direct
+          python tests/pi-standalone.py "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER\pi-kit" --direct
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       # Overlay update: only files that differ from the previous release, applied by setup.ps1 on top of that release.
       - name: Build overlay update ZIP
@@ -544,14 +544,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $previous = @(gh release list --exclude-drafts --limit 5 --json tagName --jq '.[].tagName') | Where-Object { $_ -and $_ -ne $env:GITHUB_REF_NAME } | Select-Object -First 1
-          $arguments = @('.github/tools/make-update.py', '--new-zip', 'dist/pi-offline-kit-win-x64.zip', '--output-dir', 'dist')
+          $arguments = @('.github/tools/make-update.py', '--new-zip', 'dist/pi-kit-win-x64.zip', '--output-dir', 'dist')
           if ($previous) {
             New-Item -ItemType Directory -Force .cache/base | Out-Null
             # Prefer the small manifest; fall back to the complete ZIP if it is unavailable.
             gh release download $previous --pattern 'manifest-win-x64.json' --dir .cache/base --clobber
             if ($LASTEXITCODE) {
               $global:LASTEXITCODE = 0
-              gh release download $previous --pattern 'pi-offline-kit-win-x64.zip' --dir .cache/base --clobber
+              gh release download $previous --pattern 'pi-kit-win-x64.zip' --dir .cache/base --clobber
               if ($LASTEXITCODE) { exit $LASTEXITCODE }
               $base = (Get-ChildItem .cache/base -Filter '*-win-x64.zip' | Where-Object { $_.Name -notlike '*update-from*' } | Select-Object -First 1).FullName
             } else { $base = '.cache/base/manifest-win-x64.json' }
@@ -560,15 +560,15 @@ jobs:
           python @arguments
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Verify overlay update applies with setup.ps1
-        if: ${{ hashFiles('dist/pi-offline-kit-update-from-*.zip') != '' }}
+        if: ${{ hashFiles('dist/pi-kit-update-from-*.zip') != '' }}
         timeout-minutes: 8
         shell: pwsh
         run: |
           # Last on purpose: setup.ps1 registers this second copy system-wide.
           $parent = Join-Path $env:RUNNER_TEMP 'overlay update 한글'
-          Expand-Archive dist/pi-offline-kit-win-x64.zip -DestinationPath $parent
-          $bundle = Join-Path $parent 'pi-offline-kit'
-          python tests/update-overlay.py prepare $bundle dist/pi-offline-kit-win-x64.zip dist/overlay-test
+          Expand-Archive dist/pi-kit-win-x64.zip -DestinationPath $parent
+          $bundle = Join-Path $parent 'pi-kit'
+          python tests/update-overlay.py prepare $bundle dist/pi-kit-win-x64.zip dist/overlay-test
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           Copy-Item "$bundle\config\models.example.json" "$bundle\config\models.json"
           # A wrong base must be rejected without touching anything.
@@ -580,7 +580,7 @@ jobs:
           python -c "import json,pathlib,sys; p=pathlib.Path(sys.argv[1]); p.write_bytes(pathlib.Path(sys.argv[2]).read_bytes())" "$bundle\manifest.json" dist/overlay-test/base-manifest.json
           & "$bundle\setup.ps1"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          python tests/update-overlay.py verify $bundle dist/pi-offline-kit-win-x64.zip
+          python tests/update-overlay.py verify $bundle dist/pi-kit-win-x64.zip
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           & "$bundle\setup.ps1" -Check
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
@@ -591,7 +591,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $assets = @('dist/pi-offline-kit-win-x64.zip', 'dist/pi-offline-kit-win-x64.zip.sha256', 'dist/manifest-win-x64.json') + @(Get-ChildItem dist -Filter 'pi-offline-kit-update-from-*' | ForEach-Object { "dist/$($_.Name)" })
+          $assets = @('dist/pi-kit-win-x64.zip', 'dist/pi-kit-win-x64.zip.sha256', 'dist/manifest-win-x64.json') + @(Get-ChildItem dist -Filter 'pi-kit-update-from-*' | ForEach-Object { "dist/$($_.Name)" })
           gh release create "$env:GITHUB_REF_NAME" @assets --verify-tag --title "$env:GITHUB_REF_NAME" --generate-notes
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       # Other runs keep a short-lived copy for testing. A full storage quota must not hide the verification result above.
@@ -599,11 +599,11 @@ jobs:
         if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         continue-on-error: true
         with:
-          name: pi-offline-kit-win-x64
+          name: pi-kit-win-x64
           path: |
-            dist/pi-offline-kit-win-x64.zip
-            dist/pi-offline-kit-win-x64.zip.sha256
+            dist/pi-kit-win-x64.zip
+            dist/pi-kit-win-x64.zip.sha256
             dist/manifest-win-x64.json
-            dist/pi-offline-kit-update-from-*
+            dist/pi-kit-update-from-*
           compression-level: 0
           retention-days: 7

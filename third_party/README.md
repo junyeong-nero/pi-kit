@@ -12,11 +12,11 @@
 
 | 배포 경로 | 버전 | 공식 출처 | 라이선스/고지 |
 |---|---|---|---|
-| `bin/pi/` | 1.3.0 Windows x64 | [pi release](https://github.com/earendil-works/pi/releases/tag/v1.3.0) | MIT (`pi/LICENSE`); 빌드 시 공식 ZIP 다운로드 |
+| `bin/pi/` | 1.4.0 Windows x64 | [pi release](https://github.com/earendil-works/pi/releases/tag/v1.4.0) | MIT (`pi/LICENSE`); 빌드 시 공식 ZIP 다운로드 |
 | `bin/clangd/` | 22.1.6 Windows x64 | [clangd release](https://github.com/clangd/clangd/releases/tag/22.1.6) | Apache-2.0 with LLVM exception; 배포본 `LICENSE.TXT` 보존 |
 | `bin/csharp-ls/` | 0.28.0 | [NuGet](https://www.nuget.org/packages/csharp-ls/0.28.0), [source](https://github.com/razzmatazz/csharp-language-server/tree/0.28.0) | MIT (`csharp-ls/LICENSE`); 원본 NuGet 메타데이터 및 포함 DLL 보존 |
 | `runtime/dotnet/` | SDK 10.0.401 Windows x64 | [Microsoft release metadata](https://builds.dotnet.microsoft.com/dotnet/release-metadata/10.0/releases.json) | 배포본 LICENSE 및 ThirdPartyNotices 보존 |
-| `runtime/node/` | Node.js 22.23.3 Windows x64 | [Node.js 공식 배포](https://nodejs.org/dist/v22.23.3/) | MIT 및 포함 third-party 고지, 원본 LICENSE와 배포 디렉터리 전체 보존. MCP 전용이며 시스템 PATH에 넣지 않음 |
+| `runtime/node/` | Node.js 26.12.1 Windows x64 | [Node.js 공식 배포](https://nodejs.org/dist/v26.12.1/) | MIT 및 포함 third-party 고지, 원본 LICENSE와 배포 디렉터리 전체 보존. MCP 전용이며 시스템 PATH에 넣지 않음 |
 
 ## 명령줄 도구
 
@@ -43,6 +43,7 @@ fd·rg는 exe만 넣고, SVN·Redis는 원본 패키지 전체를 넣습니다.
 | `vendor/extensions/node_modules/pi-allowlist-plugin/` | 1.3.2 | https://github.com/goldfix/pi-allowlist-plugin | MIT, 패키지의 LICENSE 보존 |
 | `vendor/extensions/node_modules/@juicesharp/rpiv-ask-user-question/` | 2.13.9 | https://github.com/juicesharp/rpiv-mono/tree/main/packages/rpiv-ask-user-question | MIT, 패키지의 LICENSE 보존 |
 | `vendor/extensions/node_modules/@juicesharp/rpiv-todo/` | 2.13.9 | https://github.com/juicesharp/rpiv-mono/tree/main/packages/rpiv-todo | MIT, 패키지의 LICENSE 보존 |
+| `vendor/extensions/node_modules/pi-tool-repair/` | 0.3.9 | https://github.com/monotykamary/pi-tool-repair | MIT(`package.json`의 `license` 표기). 패키지와 원본 저장소에 LICENSE 파일이 없어 별도 고지 파일은 없음 |
 | `vendor/extensions/node_modules/iconv-lite/` | 0.7.3 | https://github.com/pillarjs/iconv-lite | MIT, 패키지의 LICENSE 보존. CP949 변환표(`encodings/tables/cp949.json`)만 읽어 씀 |
 | `vendor/extensions/node_modules/@juicesharp/rpiv-config/` | 2.13.9 | https://github.com/juicesharp/rpiv-mono/tree/main/packages/rpiv-config | MIT, 패키지의 LICENSE 보존 |
 

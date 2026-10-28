@@ -52,8 +52,7 @@ MCP 서버는 pi 내장 MCP 기능이 [config/mcp.json](../config/mcp.json)에�
 
 ## 스킬과 프롬프트
 
-- 루트 `package.json`의 프롬프트 목록은 비어 있습니다. 스킬은 `skills/`의 `plan`·`align` 두 개뿐입니다.
-- 두 스킬은 `disable-model-invocation: true`라서 시스템 프롬프트에 광고하지 않습니다. `/skill:plan`, `/skill:align`으로만 실행합니다.
+- 루트 `package.json`의 스킬·프롬프트 목록은 비어 있습니다.
 - pi-lens가 자동으로 추가하는 스킬은 `ast` 그룹을, 서브에이전트 카탈로그는 `subagents` 그룹을 켰을 때만 광고합니다. 사용자·프로젝트가 추가한 스킬과 다른 시스템 섹션은 그대로 둡니다.
 - 외부 확장의 파일은 `vendor/extensions`에 모두 동봉하므로 필요하면 `read`로 읽거나 직접 등록할 수 있습니다.
 - 공통 필수 규칙은 [config/AGENTS.md](../config/AGENTS.md)에, 긴 호출 예시와 운영 설명은 [tool-guide.md](tool-guide.md)에 둡니다.

@@ -4,8 +4,8 @@
 
 | 파일 | 용도 |
 |---|---|
-| `pi-offline-kit-win-x64.zip` | 실행 파일과 의존성을 모두 담은 완성 배포본 |
-| `pi-offline-kit-update-from-<기준버전>-win-x64.zip` | 기준 버전에서 바뀐 파일과 삭제 목록을 담은 업데이트 |
+| `pi-kit-win-x64.zip` | 실행 파일과 의존성을 모두 담은 완성 배포본 |
+| `pi-kit-update-from-<기준버전>-win-x64.zip` | 기준 버전에서 바뀐 파일과 삭제 목록을 담은 업데이트 |
 | `*.zip.sha256` | ZIP이 손상되지 않았는지 확인하는 해시 |
 | `manifest-win-x64.json` | 배포 파일별 해시 목록. 다음 업데이트를 만들 때 비교 기준으로 사용 |
 
@@ -24,7 +24,7 @@ Release 첨부 파일은 Actions 아티팩트 저장 공간을 사용하지 않�
 [Windows 로컬 패키징 안내](development.md)에 따라 새 완성 ZIP을 만듭니다.
 
 ```text
-dist/pi-offline-kit-win-x64.zip
+dist/pi-kit-win-x64.zip
 ```
 
 비교 기준으로는 **현재 설치된 버전의 원본 완성 ZIP**이나 그 Release의 `manifest-win-x64.json`을 준비합니다. 새 ZIP과 기존 ZIP은 다른 경로에 보관하세요.
@@ -37,8 +37,8 @@ manifest는 원본 그대로 사용해야 합니다. 내용을 고치거나 파�
 
 ```powershell
 py -3.13 .github/tools/make-update.py `
-  --new-zip .\dist\pi-offline-kit-win-x64.zip `
-  --base C:\Downloads\pi-offline-kit-v1.7.2-win-x64.zip `
+  --new-zip .\dist\pi-kit-win-x64.zip `
+  --base C:\Downloads\pi-kit-v1.7.2-win-x64.zip `
   --base-version v1.7.2 `
   --output-dir .\dist
 
@@ -52,8 +52,8 @@ if ($LASTEXITCODE) { throw '업데이트 ZIP 생성 실패' }
 결과는 다음과 같습니다.
 
 ```text
-dist/pi-offline-kit-update-from-v1.7.2-win-x64.zip
-dist/pi-offline-kit-update-from-v1.7.2-win-x64.zip.sha256
+dist/pi-kit-update-from-v1.7.2-win-x64.zip
+dist/pi-kit-update-from-v1.7.2-win-x64.zip.sha256
 dist/manifest-win-x64.json
 ```
 
@@ -76,7 +76,7 @@ CI의 적용 테스트는 `tests/update-overlay.py`와 워크플로의 `Verify o
 1. pi와 동봉 도구를 사용하는 프로세스를 종료합니다.
 2. **기존 설치 폴더 전체를 백업**합니다. API 설정·인증 정보·세션·직접 바꾼 설정도 보존하세요.
 3. `Get-FileHash -Algorithm SHA256 <업데이트 ZIP 경로>` 결과가 `.sha256` 파일의 값과 같은지 확인합니다.
-4. ZIP 안의 `pi-offline-kit` 폴더를 기존 설치 폴더와 합칩니다. 기존 `setup.ps1` 옆에 `update`가 생겨야 합니다. 폴더를 이중으로 넣지 마세요.
+4. ZIP 안의 `pi-kit` 폴더를 기존 설치 폴더와 합칩니다. 기존 `setup.ps1` 옆에 `update`가 생겨야 합니다. 폴더를 이중으로 넣지 마세요. v0.1.x로 설치해 폴더 이름이 `pi-offline-kit`여도 이름을 바꾸지 말고 그 폴더에 합칩니다.
 
    ```text
    기존설치폴더/
