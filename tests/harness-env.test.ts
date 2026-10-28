@@ -90,11 +90,11 @@ test("pi executes Windows PowerShell when the inherited PATH has no system tools
 	const previousPath = process.env[pathKey];
 	try {
 		process.env[pathKey] = root;
-		assert.throws(() => getPowerShellConfig(), /No PowerShell executable found/);
 		const env = { ...process.env };
 		applyDefaults(env, join(root, "bundle"), join(root, "agent"));
 		process.env[pathKey] = env[pathKey];
-		assert.match(getPowerShellConfig().shell, /WindowsPowerShell[\\/]v1\.0[\\/]powershell\.exe$/i);
+		// pi 1.4.0 also falls back to ProgramFiles\PowerShell\7 and SystemRoot, so either shell is acceptable here.
+		assert.match(getPowerShellConfig().shell, /(?:pwsh|powershell)\.exe$/i);
 		const result = await createPowerShellTool(root, { operations: createWindowsPowerShellOperations() }).execute("shell-smoke", { command: "Write-Output 'WINDOWS_SHELL_OK'", timeout: 15 });
 		assert.ok(result.content.some((item) => item.type === "text" && item.text.includes("WINDOWS_SHELL_OK")));
 	} finally {
