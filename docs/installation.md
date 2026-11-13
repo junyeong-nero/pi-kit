@@ -45,6 +45,8 @@ ZIP을 폐쇄망 PC로 옮겨 원하는 위치에 풉니다. ZIP 안에 `pi-kit`
    - `"id"`: `<v1/models 에 나온 id>` → 사용할 모델 ID
 
    `"apiKey": "$CORP_LLM_API_KEY"`는 **그대로 둡니다.** 키는 파일에 적지 않고 다음 단계의 환경 변수에서 읽습니다. 모델의 컨텍스트 크기(`contextWindow`)·최대 출력(`maxTokens`)을 안내받았다면 함께 맞춥니다. `contextWindow`는 큰 파일을 한 번에 얼마나 읽을지 정하는 데도 쓰이므로 실제 서버 값과 다르면 너무 많이 또는 너무 적게 읽습니다.
+
+   예시 파일은 Qwen3.5(vLLM·SGLang 같은 OpenAI 호환 서버) 기준입니다. thinking을 켜고(`reasoning: true`, `chat_template_kwargs.enable_thinking`), 지난 thinking을 다시 보내지 않으며(`preserve_thinking: false`), 모델 카드의 권장 sampling 값을 보냅니다. thinking을 끄면(`/thinking`에서 `off`) instruct용 값으로 바뀝니다. `maxTokens`(32768)는 `settings.json`의 `compaction.reserveTokens`와 같게 둡니다. 다른 모델을 쓰거나 서버가 `top_k`·`chat_template_kwargs`를 거부하면 `samplingParams`·`samplingParamsByThinkingLevel`·`compat`를 지웁니다. thinking 길이 제한은 서버가 지원할 때만 `compat`에 `"thinkingTokenBudgetField": "thinking_token_budget"`(vLLM, 서버에 `--reasoning-config` 필요)를 더합니다. 지원하지 않는 서버는 요청을 거부합니다.
 3. **관리자 권한으로 연** PowerShell에서 API 키를 시스템 변수로 등록합니다. 사용자 변수는 로그인할 때 초기화되는 PC가 있어서 시스템 변수를 씁니다.
    ```powershell
    setx /M CORP_LLM_API_KEY "<발급받은 API KEY>"
@@ -107,7 +109,7 @@ Copy-Item D:\pi-kit\config\project-AGENTS.template.md D:\work\MyProject\AGENTS.m
 ## 사용할 때 알아 둘 것
 
 - **파일 수정·명령 실행은 승인을 묻습니다.** 모델이 `edit`·`write`나 허용 목록에 없는 PowerShell 명령을 실행하려 하면 승인 창이 뜹니다. **Allow once**(이번만) / **Allow for session**(이 세션 동안 같은 명령) / **Allow & save rule**(프로젝트 규칙으로 저장) / **Deny**(거부) 중에서 고릅니다. 파일 읽기·검색은 묻지 않습니다. 자세한 내용은 [도구 실행 승인](#도구-실행-승인)에 있습니다.
-- **먼저 계획만 받고 싶을 때:** `/plan <작업>`으로 계획 모드를 켜면 코드를 고치지 않고 변경 계획만 설명합니다. 계획이 끝나면 그대로 구현할지 묻고, `/plan`을 다시 입력하면 계획 모드가 꺼집니다.
+- **먼저 계획만 받고 싶을 때:** `/plan <작업>`으로 계획 모드를 시작하면 코드를 고치지 않고 조사·질문을 거쳐 변경 계획을 완성합니다. 계획이 완성되면 이 세션에서 구현할지, 새 세션에서 구현할지, 저장·내보내기할지 고릅니다. 진행 중에는 `/plan`으로 메뉴를 열어 상태를 보거나 계획 모드를 끕니다.
 - **명령은 대화로 요청합니다.** 입력창의 `!`·`!!`는 Bash 기능이라 이 PC에서는 동작하지 않습니다. "빌드해 줘", "`svn status` 보여 줘"처럼 요청하세요.
 - **멈추기·종료:** 모델 작업을 멈추려면 `Esc`, pi를 끝내려면 `/quit`를 입력하거나 `Ctrl+C`를 두 번 누릅니다.
 - 모델이 빌드·진단 없이 C++·C# 수정을 끝내려 하면 확장이 검증을 한 번 더 진행시킵니다. 모델이 스스로 이어서 작업하는 것이니 기다리면 됩니다.
@@ -171,11 +173,12 @@ pi는 `PI_CODING_AGENT_DIR`이 가리키는 `<배포 폴더>\config` 한 곳만 
 | 파일 | 내용 | 고칠 일 |
 |---|---|---|
 | `models.json` | 사내 API 주소·모델 (`models.example.json`을 복사해 만듦) | 처음 한 번, API가 바뀔 때 |
-| `settings.json` | 기본 도구, 배포본 패키지 등록(`".."`), 터미널 스크롤백을 쓰는 regular 화면 모드(`"tuiMode"`) 등 pi 설정 | 필요할 때 |
+| `settings.json` | 기본 도구, 배포본 패키지 등록(`".."`), 터미널 스크롤백을 쓰는 regular 화면 모드(`"tuiMode"`), compaction 여유(`compaction.reserveTokens`), footer의 컨텍스트 경고 기준(`contextFooter.warnTokens`) 등 pi 설정 | 필요할 때 |
 | `AGENTS.md` | 모든 프로젝트에 들어가는 도구 사용 가이드 | 공통 규칙을 더할 때 |
 | `lsp.json` | clangd·csharp-ls 실행 설정 | 서버 옵션을 바꿀 때 |
 | `pi-lens.json` | pi-lens 설정(숨길 도구 등) | 거의 없음 |
 | `extensions\subagent\config.json` | pi-subagents 설정 | 거의 없음 |
+| `pi-plan-mode.json` | 계획 모드에서 허용할 도구(`defaultPlanTools`)와 svn·git 조회 명령(`safeSubcommands`). `/plan settings`로도 바꿈 | 거의 없음 |
 | `extensions\pi-tool-repair.json` | pi-tool-repair 설정. `grammarRepair.enabled`가 `true`면 모델이 텍스트로 쓴 `<tool_call>` 같은 호출을 실제 도구 호출로 바꿈 | 거의 없음 |
 | `project-AGENTS.template.md` | 프로젝트별 AGENTS.md 템플릿 | 복사해서 사용 |
 | `offline-artifacts.lock.json`, `extensions\package*.json` | 배포 ZIP을 만들 때 쓰는 버전 고정 파일 | 고치지 않음 |

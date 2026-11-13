@@ -33,7 +33,8 @@ try {
   assert.equal(new Set(commands).size, commands.length, 'No duplicate command registrations');
   const hooksOf = name => [...(loaded.extensions.find(extension => extension.path.replaceAll('\\', '/').endsWith(`extensions/${name}/index.ts`))?.handlers.keys() ?? [])];
   assert.ok(hooksOf('harness-env').includes('before_agent_start'), 'harness-env hooks before_agent_start');
-  assert.ok(hooksOf('minimal-footer').includes('session_start'), 'minimal-footer installs the HUD on session start');
+  const footer = loaded.extensions.find(extension => extension.path.replaceAll('\\', '/').endsWith('/pi-context-footer/extensions/footer.ts'));
+  assert.ok(footer?.handlers.has('session_start') && footer.commands.has('builtin-footer'), 'pi-context-footer installs the footer on session start');
   assert.ok(!manifest.extensions.some(path => path.includes('pi-usage-bar')), 'pi-usage-bar is excluded from the bundle');
   assert.ok(hooksOf('verify-guard').includes('agent_before_settle'), 'verify-guard hooks agent_before_settle');
   assert.ok(hooksOf('allowlist-gate').includes('tool_call'), 'allowlist-gate hooks tool_call');
@@ -74,9 +75,10 @@ try {
   const repair = loaded.extensions.find(extension => extension.path.replaceAll('\\', '/').endsWith('/pi-tool-repair/tool-repair.ts'));
   assert.ok(repair?.handlers.has('message_end'), 'pi-tool-repair hooks message_end');
   assert.ok(hooksOf('read-budget').includes('tool_call') && hooksOf('read-budget').includes('tool_result'), 'read-budget trims large reads and notes it');
-  const plan = loaded.extensions.find(extension => extension.path.replaceAll('\\', '/').endsWith('/extensions/plan-mode/index.ts'));
-  assert.ok(plan?.commands.has('plan') && plan.handlers.has('tool_call'), 'plan-mode registers /plan and guards tool calls');
-  assert.ok(manifest.extensions.indexOf('./extensions/plan-mode/index.ts') < manifest.extensions.findIndex(path => path.includes('allowlist-gate')), 'plan-mode blocks before allowlist-gate asks for approval');
+  const planPath = './vendor/extensions/node_modules/@narumitw/pi-plan-mode/dist/index.ts';
+  const plan = loaded.extensions.find(extension => extension.path.replaceAll('\\', '/').endsWith('/@narumitw/pi-plan-mode/dist/index.ts'));
+  assert.ok(plan?.commands.has('plan') && plan.handlers.has('tool_call'), 'pi-plan-mode registers /plan and guards tool calls');
+  assert.ok(manifest.extensions.indexOf(planPath) >= 0 && manifest.extensions.indexOf(planPath) < manifest.extensions.findIndex(path => path.includes('allowlist-gate')), 'pi-plan-mode blocks before allowlist-gate asks for approval');
   const tools = loaded.extensions.flatMap(extension => [...extension.tools.keys()]);
   assert.equal(new Set(tools).size, tools.length, 'No duplicate tool registrations');
   for (const name of ['lsp_diagnostics', 'find_symbol', 'module_report', 'read_symbol', 'ast_grep_search', 'subagent', 'ask_user_question', 'todo']) {

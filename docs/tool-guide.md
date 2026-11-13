@@ -101,9 +101,9 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 `read`·`edit`·`write`는 UTF-8, UTF-8 BOM, UTF-16(BOM), CP949 파일을 판별해 모델에는 UTF-8 텍스트로 보여 주고, 저장할 때 원래 인코딩·BOM·줄바꿈을 유지한다. 결과 끝의 `[원래 인코딩 CP949 유지]` 같은 표시로 확인한다. CP949에 없는 문자(이모지 등)는 저장하지 않고 오류를 낸다. 판별할 수 없는 파일은 고치지 않는다.
 
-새 파일은 `.editorconfig`의 `charset` → 같은 확장자의 주변 파일(가까운 폴더부터 작업 폴더까지, 한글이 든 파일만 근거) → 기본값(C/C++/C#/PowerShell은 UTF-8 BOM, 그 밖은 UTF-8) 순서로 인코딩을 정한다. 한글이 든 `.ps1`은 Windows PowerShell 5.1이 읽도록 항상 BOM을 붙인다.
+새 파일은 `.editorconfig`의 `charset` → 같은 확장자의 주변 파일(가까운 폴더부터 작업 폴더까지, 한글이 든 파일만 근거) → 기본값(C/C++/C#/PowerShell은 UTF-8 BOM, 그 밖은 UTF-8) 순서로 인코딩을 정한다. 한글이 든 `.ps1`은 Windows PowerShell 5.1이 읽도록 항상 BOM을 붙인다. 영문만 있던 BOM 없는 파일에 한글이 처음 들어갈 때도 같은 순서를 따른다(MFC 프로젝트에서 BOM 없는 UTF-8이 생겨 MSVC가 CP949로 잘못 읽는 것을 막음).
 
-PowerShell의 `Set-Content`·`Out-File`·`>`는 인코딩을 바꾸므로 소스·스크립트 수정에 쓰지 않는다. `grep`은 한글 검색어로 CP949 파일을 찾지 못하므로 `rg -E euc-kr '한글' 경로`를 쓴다. 사용자는 `/encodings`로 프로젝트의 확장자별 인코딩 분포를 볼 수 있다.
+PowerShell의 `Set-Content`·`Add-Content`·`Out-File`·`>`·`[IO.File]::WriteAllText`는 인코딩을 바꾸므로 소스·스크립트 수정에 쓰지 않는다. `powershell` 도구의 Python은 `PYTHONUTF8=1`이라 `open()`이 UTF-8로 저장하므로 소스 수정에 쓰지 않는다. `grep`은 한글 검색어로 CP949 파일을 찾지 못하므로 `rg -E euc-kr '한글' 경로`를 쓴다. 사용자는 `/encodings`로 프로젝트의 확장자별 인코딩 분포를 볼 수 있다.
 
 ## 검증 기준
 

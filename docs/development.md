@@ -44,7 +44,7 @@ Visual Studio generator는 이 옵션을 써도 `compile_commands.json`을 만�
 - **버전 고정:** 실행 파일은 [config/offline-artifacts.lock.json](../config/offline-artifacts.lock.json), 확장 의존성은 `config/extensions/package-lock.json`, Python 패키지는 `config/redis/requirements.lock`에 버전과 해시를 고정합니다.
 - **ZIP에서 빼는 것:** 실행 파일은 Git에 넣지 않습니다. 실제 `models.json`, `agent/`, `config/` 아래 세션·캐시, 실제 Redis 매핑(`server_IP_mappings.json`·`owners.json`)은 ZIP에도 넣지 않습니다.
 
-ZIP에는 pi, fd·rg, SVN, Redis 서버와 CLI, clangd, csharp-ls, 서버용 .NET SDK, 동봉 Python과 MCP용 Node, 직접 만든 확장, pi-lens·pi-subagents·pi-usage·pi-allowlist-plugin·pi-tool-repair·rpiv-ask-user-question·rpiv-todo, Playwright MCP, Windows용 네이티브 파일과 WASM 리소스가 들어갑니다.
+ZIP에는 pi, fd·rg, SVN, Redis 서버와 CLI, clangd, csharp-ls, 서버용 .NET SDK, 동봉 Python과 MCP용 Node, 직접 만든 확장, pi-lens·pi-subagents·pi-usage·pi-allowlist-plugin·pi-tool-repair·pi-plan-mode·pi-context-footer·rpiv-ask-user-question·rpiv-todo, Playwright MCP, Windows용 네이티브 파일과 WASM 리소스가 들어갑니다.
 
 ### Actions를 쓸 수 없을 때: Windows 로컬 패키징
 

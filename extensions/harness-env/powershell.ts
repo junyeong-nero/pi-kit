@@ -136,8 +136,11 @@ export function createWindowsPowerShellOperations(): PowerShellOperations {
 			const env = { ...(options.env ?? process.env) };
 			env.PYTHONUTF8 ??= "1";
 			env.PYTHONIOENCODING ??= "utf-8";
+			// $ProgressPreference: Windows PowerShell 5.1은 출력 리다이렉트 시 모듈 자동 로딩 진행 레코드
+			// ("처음 사용하기 위해 모듈을 준비 중입니다." / "Preparing modules for first use.")를 텍스트로 흘려보낸다.
+			// 명령 실행 전에 Progress·Information 스트림을 꺼야 이 레코드가 도구 출력에 섞이지 않는다.
 			// $OutputEncoding: 파이프로 외부 프로그램에 넘기는 문자열(기본 ASCII라 한글이 ?가 됨). BOM 없는 UTF-8.
-			const script = `try { [Console]::OutputEncoding=[System.Text.Encoding]::UTF8; $OutputEncoding=New-Object System.Text.UTF8Encoding $false } catch {}\n${command}`;
+			const script = `$ProgressPreference='SilentlyContinue'; $InformationPreference='SilentlyContinue'; try { [Console]::OutputEncoding=[System.Text.Encoding]::UTF8; $OutputEncoding=New-Object System.Text.UTF8Encoding $false } catch {}\n${command}`;
 			return runShellProcess(resolvePowerShell(env), ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")], cwd, { ...options, env });
 		},
 	};

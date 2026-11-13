@@ -8,7 +8,7 @@ import {
 	type EditOperations, type ReadOperations, type WriteOperations,
 } from "@earendil-works/pi-coding-agent";
 import {
-	chooseNewFileEncoding, decodeText, detectEncoding, ENCODING_LABELS, encodeText, EncodingError,
+	chooseNewFileEncoding, decodeText, detectEncoding, ENCODING_LABELS, encodeText, EncodingError, isAscii,
 	matchLineEndings, undecidableMessage, type FileEncoding,
 } from "./encoding.ts";
 
@@ -41,6 +41,12 @@ export async function writeKeepingEncoding(path: string, content: string, root: 
 		if (encoding !== "utf8") note(`${ENCODING_LABELS[encoding]}로 저장 (${choice.reason})`);
 	} else if (detected === "binary" || detected === "unknown") {
 		throw new EncodingError(undecidableMessage(path, detected));
+	} else if (detected === "utf8" && isAscii(existing!.toString("latin1")) && !isAscii(content)) {
+		// 영문만 있던 파일은 UTF-8과 CP949를 구분할 근거가 없다. 한글이 처음 들어갈 때는 새 파일처럼 프로젝트 관례를 따른다.
+		const choice = chooseNewFileEncoding(path, content, root);
+		encoding = choice.encoding;
+		if (overwrite) text = matchLineEndings(existing!.toString("latin1"), content);
+		if (encoding !== "utf8") note(`영문만 있던 파일에 한글이 들어가 ${ENCODING_LABELS[encoding]}로 저장 (${choice.reason})`);
 	} else {
 		encoding = detected;
 		// write는 파일 전체를 바꾸므로 원래 줄바꿈도 맞춘다. edit는 pi가 이미 맞춰서 넘긴다.

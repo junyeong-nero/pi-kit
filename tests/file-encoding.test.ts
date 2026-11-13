@@ -126,6 +126,21 @@ test("new files follow neighbours with the same extension, then .editorconfig, t
 	assert.deepEqual(readFileSync(join(p.root, "readme.txt")), bom("한글\n"));
 });
 
+test("an ASCII-only file that gets its first Korean text follows the project's encoding", async (t) => {
+	const p = project(t);
+	writeFileSync(join(p.root, "Main.cpp"), cp949("// 메인\r\nint main(){}\r\n"));
+	writeFileSync(join(p.root, "Util.cpp"), "int add(int a,int b){return a+b;}\r\n");
+	assert.match(await p.edit("Util.cpp", "int add", "// 더하기\r\nint add"), /CP949로 저장/);
+	assert.deepEqual(readFileSync(join(p.root, "Util.cpp")), cp949("// 더하기\r\nint add(int a,int b){return a+b;}\r\n"));
+	// 근거가 없으면 C/C++/C# 기본값(UTF-8 BOM)을 쓴다. 영문만 들어가면 원래대로 둔다.
+	writeFileSync(join(p.root, "View.h"), "#pragma once\n");
+	await p.edit("View.h", "#pragma once", "#pragma once\n// 화면");
+	assert.equal(detectEncoding(readFileSync(join(p.root, "View.h"))), "utf8-bom");
+	writeFileSync(join(p.root, "Plain.cpp"), "int y;\n");
+	await p.edit("Plain.cpp", "int y;", "int z;");
+	assert.equal(readFileSync(join(p.root, "Plain.cpp"), "latin1"), "int z;\n");
+});
+
 test("scan reports encodings per extension and lists undecidable files", (t) => {
 	const p = project(t);
 	writeFileSync(join(p.root, "a.cpp"), cp949("// 한글\r\n"));

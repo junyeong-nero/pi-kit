@@ -34,10 +34,10 @@ ZIP에 pi, 언어 서버, SDK, 확장과 동봉 도구가 모두 들어 있어 �
 | verify-guard | C/C++/C# 소스·프로젝트 파일(`.cpp`·`.h`·`.cs`·`.csproj`·`.sln`·`CMakeLists.txt` 등)을 고친 뒤 빌드·진단 없이 끝내려 하면 한 턴 더 진행해 검증하게 함. 빌드가 실패한 채 끝내려 하면 첫 오류를 보여 주고 수정·재빌드로 이어감 (프롬프트당 최대 5회) |
 | [allowlist-gate](https://github.com/goldfix/pi-allowlist-plugin) | 허용 목록에 없는 도구 호출을 실행 전에 사용자에게 승인받음. `edit`·`write`·`powershell`·`subagent` 등이 대상이고 읽기 전용 명령·도구는 묻지 않음 ([승인 방법](docs/installation.md#도구-실행-승인)) |
 | read-budget | 큰 파일을 통째로 `read`하지 않게 함. `models.json`의 `contextWindow`와 지금까지 쓴 컨텍스트를 보고, 한 번에 읽을 양(전체 창의 15%와 남은 여유의 25% 중 작은 값)을 넘으면 호출을 막지 않고 `limit`을 줄여 앞부분만 읽힘. 결과 끝에 이어 읽을 `offset`과 안내가 붙음. CP949·UTF-16 파일도 모델이 받는 UTF-8 크기로 계산 |
-| plan-mode | `/plan`으로 계획 모드를 켜고 끔. `/plan <작업>`은 켜고 바로 계획을 요청. 켜져 있으면 `edit`·`write`, 파일을 바꾸는 PowerShell 명령, 하위 에이전트·Edge MCP 도구를 막고 읽기·검색·빌드센터 조회와 조회 명령(`Get-Content`, `rg`, `git diff` 등)만 허용. 계획이 끝나면 계획 모드를 유지할지, 끄고 그 계획대로 구현할지 물음 |
+| [pi-plan-mode](https://github.com/narumiruna/pi-extensions/tree/main/packages/pi-plan-mode) | `/plan`으로 메뉴를 열고 `/plan <작업>`으로 바로 계획을 시작하는 Codex식 읽기 전용 계획 모드. 계획 중에는 `edit`·`write`와 조회가 아닌 PowerShell 명령을 막고, [config/pi-plan-mode.json](config/pi-plan-mode.json)에 적은 읽기·검색·LSP·빌드센터 조회 도구와 svn·git 조회 명령만 허용. 계획이 완성되면 이 세션에서 구현, 새 세션에서 구현, 저장, 파일로 내보내기, 계속 계획 중에서 고름. `/plan settings`로 설정 |
 | [pi-tool-repair](https://github.com/monotykamary/pi-tool-repair) | 모델이 도구 인자를 틀리게 보내면 실행 전에 고침: `file_path`→`path` 같은 인자 이름, 문자열로 보낸 배열·숫자, `read_1_2` 같은 도구 이름, 텍스트로 쓴 `<tool_call>` 호출. `powershell`의 `cmd`→`command`는 harness-env가 고침. 설정은 `config\extensions\pi-tool-repair.json` |
 | auto-mode | `/automode on` 또는 `auto`로 전역 승인 게이트를 끄고, `/automode off`로 다시 켬. pi 설정 폴더에 저장하며 리로드 없이 다음 도구 호출부터 반영. 같은 설정을 쓰는 다른 세션에도 적용되고, 신뢰된 프로젝트의 별도 설정이 있으면 그 설정이 우선 |
-| minimal-footer | 맥북과 같은 한 줄 HUD: `[모델 ◔ 사고 수준] 컨텍스트 막대 사용률% \| 폴더 git:(브랜치)`. `pi-usage-bar`와 다른 확장 상태 줄은 표시하지 않으며 `/tokens` 조회는 유지 |
+| [pi-context-footer](https://github.com/msvart/pi-context-footer) | footer에 폴더·브랜치·모델·사고 수준, 컨텍스트 막대·사용률·토큰 수, auto-compact까지 남은 토큰, cache hit rate를 표시. 컨텍스트가 `contextFooter.warnTokens`(64k, `config\settings.json`)를 넘으면 노란색으로 경고. 이 값은 auto-compact 지점(`contextWindow` − `compaction.reserveTokens`)보다 작아야 의미가 있음. 외부 호출·특수 글꼴 없이 동작. `/builtin-footer`로 pi 기본 footer 복원 |
 | tool-profile | 모델에 보이는 도구를 기본 묶음으로 줄이고, `harness_tools`로 `code`·`ast`·`subagents` 그룹을 필요할 때 켬 |
 | pi-lens | 코드 구조 분석(`module_report`, `read_symbol` 등). 역할이 겹치는 도구 일부는 [기본으로 숨김](docs/tool-exposure.md) |
 | pi-subagents | 별도 에이전트에 조사·검토를 맡김. Windows에서는 `async: false`로 사용 |

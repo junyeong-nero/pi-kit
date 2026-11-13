@@ -103,6 +103,7 @@ def legacy_user_environment(bundle, enabled):
 def run(bundle, mode="installed"):
     node_cli = mode == "node-cli"
     bundle = Path(bundle).resolve()
+    guide_title = (bundle / "config/AGENTS.md").read_text(encoding="utf-8").splitlines()[0]
     with tempfile.TemporaryDirectory(prefix="pi-standalone-") as temp, legacy_user_environment(bundle, mode == "upgrade"):
         root = Path(temp)
         project = root / "project space"
@@ -168,9 +169,9 @@ def run(bundle, mode="installed"):
                 child = any(m.get("role") == "user" and "HARNESS_CHILD_SMOKE" in json.dumps(m.get("content", "")) for m in request.get("messages", []))
                 if not child:
                     system = json.dumps([m for m in request.get("messages", []) if m.get("role") == "system"], ensure_ascii=False)
-                    # harness-env adds the guide when no context file has it; it must appear exactly once.
-                    if system.count("# 도구 사용 규칙") != 1:
-                        state["errors"].append(f"Tool guide appears {system.count('# 도구 사용 규칙')} times in the system prompt")
+                    # pi reads config/AGENTS.md through PI_CODING_AGENT_DIR, and harness-env adds it when no context file has it; it must appear exactly once.
+                    if system.count(guide_title) != 1:
+                        state["errors"].append(f"Tool guide appears {system.count(guide_title)} times in the system prompt")
                     for skill in ("pi-lens-ast-grep", "pi-subagents"):
                         if f"<name>{skill}</name>" in system:
                             state["errors"].append(f"Unused bundled skill advertised: {skill}")

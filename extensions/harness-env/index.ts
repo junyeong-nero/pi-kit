@@ -9,8 +9,6 @@ import { createEncodingAwareTools } from "./file-tools.ts";
 import { createWindowsPowerShellOperations } from "./powershell.ts";
 import { repairPowerShellArgs } from "./tool-args.ts";
 
-export const GUIDE_MARKER = "# 도구 사용 규칙";
-
 export function bundleRootOf(moduleUrl: string): string {
 	return resolve(dirname(fileURLToPath(moduleUrl)), "..", "..");
 }
@@ -91,11 +89,13 @@ export default function (pi: ExtensionAPI) {
 		if (tools) pi.setActiveTools(tools);
 	});
 
-	// 도구 사용 가이드를 컨텍스트에 한 번만 넣는다. 사용자가 AGENTS.md에 직접 넣어 두었다면 건너뛴다.
+	// 도구 사용 가이드를 컨텍스트에 한 번만 넣는다. pi가 이미 읽었거나(PI_CODING_AGENT_DIR=config) 사용자가 AGENTS.md에 직접 넣어 두었다면 건너뛴다.
 	const guidePath = join(bundle, "config", "AGENTS.md");
 	pi.on("before_agent_start", (event) => {
+		if (!existsSync(guidePath)) return;
+		const guide = readFileSync(guidePath, "utf-8");
 		const files = event.systemPromptOptions.contextFiles;
-		if (files.some((file) => file.content.includes(GUIDE_MARKER)) || !existsSync(guidePath)) return;
-		files.push({ path: guidePath, content: readFileSync(guidePath, "utf-8") });
+		if (files.some((file) => resolve(file.path) === guidePath || file.content.includes(guide.trim()))) return;
+		files.push({ path: guidePath, content: guide });
 	});
 }

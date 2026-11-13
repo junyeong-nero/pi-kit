@@ -1,11 +1,25 @@
 import assert from "node:assert/strict";
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { test } from "node:test";
 import { createPowerShellTool, getPowerShellConfig } from "@earendil-works/pi-coding-agent";
-import { applyDefaults, windowsToolSet } from "../extensions/harness-env/index.ts";
+import harnessEnv, { applyDefaults, windowsToolSet } from "../extensions/harness-env/index.ts";
 import { createWindowsPowerShellOperations, resolvePowerShell, runShellProcess, terminateWindowsTree } from "../extensions/harness-env/powershell.ts";
+
+test("adds the bundled AGENTS.md guide only when no context file has it", () => {
+	const handlers = new Map<string, (event: any) => unknown>();
+	harnessEnv({ registerTool() {}, registerCommand() {}, on: (name: string, handler: any) => handlers.set(name, handler) } as any);
+	const guidePath = join(process.cwd(), "config", "AGENTS.md");
+	const guide = readFileSync(guidePath, "utf-8");
+	const run = (contextFiles: { path: string; content: string }[]) => {
+		handlers.get("before_agent_start")!({ systemPromptOptions: { contextFiles } });
+		return contextFiles.filter((file) => file.content === guide).length;
+	};
+	assert.equal(run([]), 1, "standalone: the guide is added");
+	assert.equal(run([{ path: guidePath, content: guide }]), 1, "PI_CODING_AGENT_DIR=config: pi already loaded it");
+	assert.equal(run([{ path: "/elsewhere/AGENTS.md", content: `# mine\n${guide}` }]), 0, "a user AGENTS.md that copies the guide is enough");
+});
 
 test("fills bundle defaults only where unset", () => {
 	const env: NodeJS.ProcessEnv = { PI_LENS_CONFIG_PATH: "custom.json" };

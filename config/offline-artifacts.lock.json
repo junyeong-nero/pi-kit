@@ -30,9 +30,9 @@
       "destination": "bin/svn"
     },
     "pi": {
-      "version": "1.4.0",
-      "url": "https://github.com/earendil-works/pi/releases/download/v1.4.0/pi-windows-x64.zip",
-      "sha256": "0f7256ea8bdac3af20012b94fdc1252a31cc6dc0d2f9b9eb539555d22e3e321b",
+      "version": "1.5.2",
+      "url": "https://github.com/earendil-works/pi/releases/download/v1.5.2/pi-windows-x64.zip",
+      "sha256": "e6adb8cb8c84eca14391ad24b363de9d2be98a89ca3ba3fdee1fa4de32b7f2e8",
       "prefix": "",
       "destination": "bin/pi"
     },
