@@ -4,8 +4,6 @@ import type { ExtensionAPI, NormalizedBuildSystemPromptOptions } from "@earendil
 import { Type } from "typebox";
 
 export const GROUPS = {
-	code: ["lsp_symbols", "lsp_definition", "lsp_references", "lsp_hover", "module_report", "read_symbol"],
-	ast: ["ast_grep_search", "ast_grep_replace", "pi_lens_activate_tools"],
 	subagents: ["subagents_enable", "subagent", "bg_wait", "subagent_supervisor"],
 } as const;
 export type Group = keyof typeof GROUPS;
@@ -22,7 +20,6 @@ export function trimBundledPrompt(options: NormalizedBuildSystemPromptOptions, b
 	options.skills = options.skills.filter(skill => {
 		const path = normalize(skill.filePath);
 		if (!path.startsWith(vendor + "/") && !path.startsWith(vendor + "\\")) return true;
-		if (path.includes("pi-lens")) return enabled.has("ast");
 		if (path.includes("pi-subagents")) return enabled.has("subagents");
 		return true;
 	});
@@ -39,12 +36,12 @@ export default function (pi: ExtensionAPI) {
 	}
 	pi.registerTool({
 		name: "harness_tools", label: "Optional tools",
-		description: "Enable optional tools for this session: code (detailed symbols), ast (structural search/edit), subagents (authorized delegation). action=list reports groups; disable hides a group. Enable before calling its tools.",
+		description: "Enable optional tools for this session: subagents (authorized delegation). action=list reports groups; disable hides a group. Enable before calling its tools.",
 		parameters: Type.Object({ action: Type.Optional(Type.Union([Type.Literal("enable"), Type.Literal("disable"), Type.Literal("list")])),
-			group: Type.Optional(Type.Union([Type.Literal("code"), Type.Literal("ast"), Type.Literal("subagents")])) }),
+			group: Type.Optional(Type.Literal("subagents")) }),
 		async execute(_id, params) {
 			const action = params.action ?? "enable";
-			if (action !== "list" && !params.group) throw new Error("group이 필요합니다: code, ast, subagents");
+			if (action !== "list" && !params.group) throw new Error("group이 필요합니다: subagents");
 			if (action === "enable") enabled.add(params.group!);
 			if (action === "disable") enabled.delete(params.group!);
 			const active = apply();

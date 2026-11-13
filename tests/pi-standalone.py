@@ -112,20 +112,12 @@ def run(bundle, mode="installed"):
         shutil.copy2(bundle / "tests/fixtures/cpp/main.cpp", file)
         legacy = project / "legacy.cpp"
         legacy.write_bytes("// 한글 주석\r\nint legacy = 1;\r\n".encode("cp949"))
-        position = {"path": str(file), "line": 2, "symbol": "add"}
         stages = [
-            ("harness_tools", {"group": "code"}, "module_report"),
-            ("module_report", {"path": str(file)}, "add"),
             ("harness_tools", {"group": "subagents"}, "subagent"),
             ("subagents_enable", {}, "subagent"),
             ("subagent", {"agent": "harness-smoke", "task": "HARNESS_CHILD_SMOKE: reply CHILD_OK", "async": False}, "CHILD_OK"),
-            ("lsp_hover", position, "add"),
-            ("lsp_definition", position, "main.cpp:1:"),
-            ("lsp_references", position, "main.cpp:2:"),
-            ("lsp_symbols", {"path": str(file)}, "add"),
-            ("find_symbol", {"name": "add", "path": str(file)}, "정의: "),
-            ("lsp_diagnostics", {"path": str(file)}, "no issues"),
-            ("write", {"path": str(file), "content": "int main() { return missing_name; }\n"}, "missing_name"),
+            ("read", {"path": str(file)}, "add"),
+            ("write", {"path": str(file), "content": "int main() { return 0; }\n"}, "Successfully"),
         ]
         if not node_cli:
             stages[0:0] = [
@@ -136,7 +128,7 @@ def run(bundle, mode="installed"):
                 ("powershell", {"command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\hangul.ps1"}, "한글 스크립트 OK"),
                 ("write", {"path": str(project / "hangul.py"), "content": "print('파이썬 한글 OK')\n"}, "Successfully"),
                 ("powershell", {"command": "python hangul.py"}, "파이썬 한글 OK"),
-                # pi-lens only lets the model edit files it has read; read must show the CP949 Korean decoded.
+                # read must show the CP949 Korean decoded, and edit must keep CP949 on disk.
                 ("read", {"path": str(project / "legacy.cpp")}, "한글 주석"),
                 ("edit", {"path": str(project / "legacy.cpp"), "edits": [{"oldText": "int legacy = 1;", "newText": "int legacy = 2; // 수정"}]}, "CP949"),
                 ("powershell", {"command": "fd --version"}, "fd 10.5.0"),
@@ -155,10 +147,7 @@ def run(bundle, mode="installed"):
                 ("tool_search", {"query": "빌드센터 build center list projects"}, "mcp__build_center__list_projects"),
                 ("mcp__build_center__list_projects", {}, "mapping_file"),
             ]
-        # verify-guard sends this reminder when the run ends after write without a build or diagnostics call.
-        reminder = "검증하지 않았다"
-        forced_turns = 2
-        state = {"turn": 0, "children": 0, "reminders": 0, "errors": []}
+        state = {"turn": 0, "children": 0, "errors": []}
 
         class Handler(BaseHTTPRequestHandler):
             def log_message(self, *_args):
@@ -172,12 +161,10 @@ def run(bundle, mode="installed"):
                     # pi reads config/AGENTS.md through PI_CODING_AGENT_DIR, and harness-env adds it when no context file has it; it must appear exactly once.
                     if system.count(guide_title) != 1:
                         state["errors"].append(f"Tool guide appears {system.count(guide_title)} times in the system prompt")
-                    for skill in ("pi-lens-ast-grep", "pi-subagents"):
+                    for skill in ("pi-subagents",):
                         if f"<name>{skill}</name>" in system:
                             state["errors"].append(f"Unused bundled skill advertised: {skill}")
                 turn = state["turn"]
-                if turn > len(stages) and not child and reminder in json.dumps(request.get("messages", []), ensure_ascii=False):
-                    state["reminders"] += 1
                 if turn and turn <= len(stages) and not child:
                     messages = [m for m in request.get("messages", []) if m.get("role") == "tool"]
                     expected = stages[turn - 1][2]
@@ -195,7 +182,7 @@ def run(bundle, mode="installed"):
                     name, arguments, _ = stages[turn]
                     names = [tool.get("function", {}).get("name") for tool in request.get("tools", [])]
                     if turn == 0:
-                        for optional in ("mcp__build_center__get_results", "mcp__build_center__list_projects", "module_report", "subagent", "subagents_enable", "bg_wait", "subagent_supervisor", "pi_lens_activate_tools"):
+                        for optional in ("mcp__build_center__get_results", "mcp__build_center__list_projects", "subagent", "subagents_enable", "bg_wait", "subagent_supervisor"):
                             if optional in names:
                                 state["errors"].append(f"Optional tool advertised before activation: {optional}")
                         # rpiv-todo is a default tool; rpiv-ask-user-question hides itself without a screen (-p).
@@ -207,10 +194,9 @@ def run(bundle, mode="installed"):
                         state["errors"].append(f"Tool not advertised: {name}")
                     if not node_cli and "bash" in names:
                         state["errors"].append("Bash tool advertised on Windows")
-                    # config/pi-lens.json hides these; seeing one means the bundled pi-lens config was not applied.
-                    for hidden in ("lens_diagnostics", "symbol_search", "project_report", "read_enclosing", "effective_config"):
-                        if hidden in names:
-                            state["errors"].append(f"Hidden tool advertised: {hidden}")
+                    for removed in ("module_report", "read_symbol", "ast_grep_search", "lens_diagnostics", "lsp_diagnostics", "lsp_hover", "find_symbol"):
+                        if removed in names:
+                            state["errors"].append(f"Removed tool advertised (pi-lens/LSP are not bundled): {removed}")
                     delta = {"role": "assistant", "tool_calls": [{"index": 0, "id": f"call_{turn}", "type": "function", "function": {"name": name, "arguments": json.dumps(arguments)}}]}
                     reason = "tool_calls"
                 else:
@@ -249,21 +235,17 @@ def run(bundle, mode="installed"):
                 agent.mkdir()
                 (agent / "models.json").write_text(json.dumps(models), encoding="utf-8")
                 (agent / "settings.json").write_text(json.dumps({"packages": [str(bundle)]}), encoding="utf-8")
-                config = root / "lsp.json"
-                config.write_text(json.dumps({"servers": {"cpp": {"command": "clangd", "args": ["--log=error"]}}}))
-                env.update(PI_CODING_AGENT_DIR=str(agent), HARNESS_LSP_CONFIG=str(config))
-                for name in [key for key in env if key.startswith("PI_LENS_")]:
-                    env.pop(name)
+                env.update(PI_CODING_AGENT_DIR=str(agent))
                 command = ["node", str(bundle / "node_modules/@earendil-works/pi-coding-agent/dist/cli.js"), *arguments]
             elif mode == "direct":
                 # What a user gets by running pi.exe from any folder after `pi install <bundle>`:
-                # no setup.ps1, no HARNESS_* or PI_LENS_* variables, bundle bin not on PATH.
+                # no setup.ps1, no HARNESS_* variables, bundle bin not on PATH.
                 agent = root / "agent"
                 agent.mkdir()
                 (agent / "models.json").write_text(json.dumps(models), encoding="utf-8")
                 # No defaultTools: harness-env must replace pi's bash default with PowerShell tools.
                 (agent / "settings.json").write_text(json.dumps({"packages": [str(bundle)]}), encoding="utf-8")
-                for name in [key for key in env if key.startswith(("PI_LENS_", "HARNESS_", "PI_SUBAGENT_"))]:
+                for name in [key for key in env if key.startswith(("HARNESS_", "PI_SUBAGENT_"))]:
                     env.pop(name)
                 # Reproduce a PC whose PATH omits both PowerShell and where.exe.
                 # harness-env must recover the system tools from SystemRoot.
@@ -321,11 +303,11 @@ def run(bundle, mode="installed"):
             gate_path.parent.mkdir(parents=True, exist_ok=True)
             gate_path.write_text(json.dumps(gate), encoding="utf-8")
             result = subprocess.run(command, cwd=project, env=env, stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180)
-            if result.returncode or "OFFLINE_STANDALONE_OK" not in result.stdout or state["errors"] or state["turn"] != len(stages) + 1 + forced_turns or state["reminders"] != forced_turns or state["children"] != 1:
-                raise AssertionError(f"pi smoke failed ({result.returncode}), turns={state['turn']}, reminders={state['reminders']}, errors={state['errors']}\n{result.stdout}\n{result.stderr}")
+            if result.returncode or "OFFLINE_STANDALONE_OK" not in result.stdout or state["errors"] or state["turn"] != len(stages) + 1 or state["children"] != 1:
+                raise AssertionError(f"pi smoke failed ({result.returncode}), turns={state['turn']}, errors={state['errors']}\n{result.stdout}\n{result.stderr}")
             if not node_cli and legacy.read_bytes() != "// 한글 주석\r\nint legacy = 2; // 수정\r\n".encode("cp949"):
                 raise AssertionError(f"CP949 edit changed the file encoding: {legacy.read_bytes()!r}")
-            print(f"pi {mode} passed: package extensions and skills, tool guide once, foreground child, allowlist gate, all 5 LSP tools, find_symbol, write -> diagnostics, verify-guard reminders")
+            print(f"pi {mode} passed: package extensions and skills, tool guide once, foreground child, allowlist gate, read/write/edit encodings")
         finally:
             if created_smoke_agent:
                 smoke_agent.unlink()

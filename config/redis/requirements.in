@@ -2,3 +2,5 @@
 mcp==1.30.0
 redis==8.1.0
 tzdata==2026.5
+# Windows desktop automation MCP (config/mcp.json "windows"). 0.8.6+ requires Python 3.14; the bundle ships 3.13.
+windows-mcp==0.8.5

@@ -7,12 +7,12 @@
 1. 프로젝트 규칙에서 소스 위치, 빌드·테스트 명령, 수정 금지 경로를 확인한다. 기존 사용자 변경을 보존한다.
 2. 관련 파일을 찾고 필요한 본문을 읽는다. C++·C# 심볼 변경은 정의와 사용처도 확인한다.
 3. 기존 형식·인코딩·줄바꿈을 유지해 필요한 부분만 수정한다.
-4. 변경에 맞는 진단·빌드·테스트를 실행하고 결과를 확인한다. 실패하면 첫 오류부터 원인을 수정한다.
+4. 변경에 맞는 빌드·테스트를 실행하고 결과를 확인한다. 실패하면 첫 오류부터 원인을 수정한다.
 5. 바뀐 동작, 실행한 검증과 결과, 남은 문제를 간결하게 보고한다.
 
 여러 파일을 바꾸거나 영향 범위가 넓으면 수정할 파일과 작업 순서 3~5개를 먼저 적는다. 질문 답변이나 작은 수정에는 별도 계획이 필요 없다. 앞선 결과가 필요한 호출은 결과를 확인한 뒤 진행한다. 사용자가 이미 요청한 작업의 허가를 반복해서 묻지 않는다.
 
-상세 코드 도구는 `harness_tools({"group":"code"})`, 구조 검색은 `ast`, 허가된 위임은 `subagents` 그룹을 먼저 켠다. 빌드센터(build center) 같은 MCP 도구는 `tool_search({"query":"빌드센터 모듈 결과"})`로 찾는다. 기본 도구 설명에는 필요한 입력 스키마가 있으며 이 문서는 필요할 때 읽는다.
+허가된 위임은 `harness_tools({"group":"subagents"})`로 먼저 켠다. 빌드센터(build center) 같은 MCP 도구는 `tool_search({"query":"빌드센터 모듈 결과"})`로 찾는다. 기본 도구 설명에는 필요한 입력 스키마가 있으며 이 문서는 필요할 때 읽는다.
 
 ## 탐색과 도구 선택
 
@@ -21,14 +21,12 @@
 | 파일·폴더 찾기 | `find`, `ls` |
 | 문자열 검색 | `grep`; 경로·파일 형식·출력량을 제한 |
 | 본문 확인 | `read`의 `offset`·`limit`으로 필요한 범위만 읽기 |
-| 파일 구조 파악 | `module_report`; 결과가 없으면 `lsp_symbols` |
-| 이름만 아는 C++·C# 심볼 | `find_symbol`로 정의·참조를 함께 조회 |
-| 위치를 아는 C++·C# 심볼 | `lsp_definition`, `lsp_references`, `lsp_hover` |
-| 파일 진단 | `lsp_diagnostics` |
+| C++·C# 심볼의 정의·사용처 | `grep`으로 이름을 찾고(단어 단위·확장자를 좁혀) 후보 파일을 `read`로 확인 |
+| 컴파일 오류 확인 | 프로젝트 빌드(`msbuild`, `dotnet build`) |
 | 기존 파일 수정 / 새 파일 작성 | `edit` / `write` |
 | 명령 실행 | `powershell` |
 
-`node_modules`, `bin`, `obj`, `.git`, `dist`, `build`, `out` 등은 일반 소스 검색에서 제외한다. 의존성·빌드 문제 조사에 필요하면 해당 파일만 좁혀 읽는다. 결과가 잘렸다면 경로·패턴·파일 형식을 좁혀 다시 검색한다. 잘린 결과만 보고 사용처를 모두 찾았다고 결론 내리지 않는다.
+`node_modules`, `bin`, `obj`, `.git`, `.svn`, `dist`, `build`, `out` 등은 일반 소스 검색에서 제외한다. `.vs`는 Visual Studio가 디버깅 중 잠그는 캐시(IntelliSense DB·`.suo`)라 검색·읽기 대상이 아니다. `grep` 도구는 glob을 주지 않으면 `.vs`·`.svn`·`.git`을 자동으로 빼고, `powershell`의 `rg`는 `config/ripgrep.conf`로 같은 폴더를 뺀다. `rg --no-config`로 이 규칙을 풀지 않는다. 의존성·빌드 문제 조사에 필요하면 해당 파일만 좁혀 읽는다. 결과가 잘렸다면 경로·패턴·파일 형식을 좁혀 다시 검색한다. 잘린 결과만 보고 사용처를 모두 찾았다고 결론 내리지 않는다.
 
 아래 경로·심볼·줄 번호는 호출 형식 예시다. 실제 값은 검색과 읽기로 확인한다. `line`은 1부터 시작하고, `symbol`은 그 줄에 있는 식별자다.
 
@@ -36,17 +34,10 @@
 find({"pattern":"*.cs","path":"src"})
 grep({"pattern":"CreateSession","path":"src","glob":"*.cpp","limit":50})
 read({"path":"src/main.cpp","offset":100,"limit":80})
-module_report({"path":"src/Session.cs","view":"compact"})
-find_symbol({"name":"CreateSession","path":"src","language":"cpp"})
-lsp_definition({"path":"src/main.cpp","line":12,"symbol":"CreateSession"})
-lsp_references({"path":"src/main.cpp","line":12,"symbol":"CreateSession"})
-lsp_hover({"path":"src/main.cpp","line":12,"symbol":"CreateSession"})
-lsp_symbols({"path":"src/main.cpp"})
-lsp_symbols({"query":"Session","language":"cpp"})
-lsp_diagnostics({"path":"src/main.cpp"})
+grep({"pattern":"\\bCreateSession\\b","path":"src","glob":"*.{h,cpp}","limit":50})
 ```
 
-`module_report`는 구조 확인용이므로 수정 전에는 본문도 읽는다. `lsp_symbols`의 `path`는 파일 내 목록, `query`는 워크스페이스 이름 검색이다. `find_symbol`의 `path`·`language`는 검색 범위를 좁힌다.
+심볼을 바꿀 때는 선언(`.h`)·정의(`.cpp`/`.cs`)·사용처를 모두 찾고, 매크로·리소스 ID(`.rc`, `resource.h`)·XAML 바인딩처럼 문자열로 연결되는 곳도 확인한다.
 
 ## 수정과 실패 처리
 
@@ -72,7 +63,7 @@ msbuild .\MyApp.sln /m /p:Configuration=Debug
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 ```
 
-도구를 찾지 못하면 `Get-Command msbuild -ErrorAction SilentlyContinue` 등으로 확인하고 누락된 항목을 알린다. 폐쇄망에서 인터넷 다운로드·도구 설치를 시도하지 않는다. 프로젝트의 기존 SDK·타기팅 팩·NuGet 소스·캐시·복원 절차를 사용하고, 언어 서버용 SDK로 프로젝트 빌드 환경을 바꾸지 않는다.
+도구를 찾지 못하면 `Get-Command msbuild -ErrorAction SilentlyContinue` 등으로 확인하고 누락된 항목을 알린다. 폐쇄망에서 인터넷 다운로드·도구 설치를 시도하지 않는다. 프로젝트의 기존 SDK·타기팅 팩·NuGet 소스·캐시·복원 절차를 사용한다.
 
 `find`·`grep`보다 제외 조건이나 출력 형식 지정이 필요하면 동봉된 `fd`·`rg`를 사용한다.
 
@@ -107,9 +98,7 @@ PowerShell의 `Set-Content`·`Add-Content`·`Out-File`·`>`·`[IO.File]::WriteAl
 
 ## 검증 기준
 
-- 편집 결과에 붙은 진단을 먼저 읽고, 필요하면 `lsp_diagnostics`로 최신 상태를 확인한다.
-- `analysis pending`·시간 초과·서버 실패는 오류 없음이 아니다. 같은 요청만 반복하지 말고 설정·출력을 확인한다. LSP를 사용할 수 없으면 범위를 좁힌 `grep`·`rg`로 조사하고 분석 한계를 보고한다.
-- 진단이 깨끗해도 빌드 성공을 뜻하지 않는다. 동작에 영향을 주는 코드 변경은 관련 빌드·테스트로 확인한다. 문구·주석 수정에 무관한 전체 빌드를 반복하지 않는다.
+- 동작에 영향을 주는 코드 변경은 관련 빌드·테스트로 확인한다. 문구·주석 수정에 무관한 전체 빌드를 반복하지 않는다.
 - 빌드 실패 시 첫 오류의 파일·줄·주변 코드를 읽고 원인을 수정한 뒤 다시 빌드한다. 관련 없는 기존 오류는 구분해 보고한다.
 - 실행하지 않은 테스트·CI·실제 서버 접속을 성공으로 보고하지 않는다. 실행할 수 없으면 이유와 미확인 범위를 적는다.
 
@@ -133,7 +122,7 @@ MSYS2 with-Service 패키지 전체가 동봉돼 있다. 로컬 서버를 요청
 
 ## 확장과 서브에이전트
 
-단순 검색·수정은 직접 처리한다. pi-lens는 구조 분석이 필요할 때 사용하고, 숨겨진 도구의 이름·인자를 추측하지 않는다.
+단순 검색·수정은 직접 처리한다. 숨겨진 도구의 이름·인자를 추측하지 않는다.
 
 조사·검토를 나눌 필요가 있으면 `harness_tools({"group":"subagents"})`로 도구를 켜고 `subagents_enable`로 활성화한 뒤 읽기 전용 `scout`·`reviewer`를 사용한다. Windows에서는 `async: false`를 명시한다. 하위 에이전트에 작업 범위·사용할 도구·금지할 변경·완료 조건을 전달하고 결과를 직접 확인한다. 같은 파일을 동시에 수정하게 하지 않는다.
 

@@ -6,6 +6,7 @@ import { test } from "node:test";
 import { createPowerShellTool, getPowerShellConfig } from "@earendil-works/pi-coding-agent";
 import harnessEnv, { applyDefaults, windowsToolSet } from "../extensions/harness-env/index.ts";
 import { createWindowsPowerShellOperations, resolvePowerShell, runShellProcess, terminateWindowsTree } from "../extensions/harness-env/powershell.ts";
+import { EXCLUDE_GLOB, excludeNoisyDirs } from "../extensions/harness-env/search-excludes.ts";
 
 test("adds the bundled AGENTS.md guide only when no context file has it", () => {
 	const handlers = new Map<string, (event: any) => unknown>();
@@ -21,13 +22,47 @@ test("adds the bundled AGENTS.md guide only when no context file has it", () => 
 	assert.equal(run([{ path: "/elsewhere/AGENTS.md", content: `# mine\n${guide}` }]), 0, "a user AGENTS.md that copies the guide is enough");
 });
 
+test("grep without a glob skips .vs, .svn and .git; explicit globs and paths are kept", () => {
+	const plain: { pattern: string; glob?: unknown; path?: unknown } = { pattern: "Foo" };
+	assert.equal(excludeNoisyDirs(plain), true);
+	assert.equal(plain.glob, EXCLUDE_GLOB);
+	const typed = { pattern: "Foo", glob: "*.cpp" };
+	assert.equal(excludeNoisyDirs(typed), false);
+	assert.equal(typed.glob, "*.cpp");
+	for (const path of [".vs", "src\\.vs\\App", "proj/.svn/entries"]) {
+		const inside: { pattern: string; glob?: unknown; path: string } = { pattern: "Foo", path };
+		assert.equal(excludeNoisyDirs(inside), false, path);
+		assert.equal(inside.glob, undefined);
+	}
+	const vscode: { pattern: string; glob?: unknown; path: string } = { pattern: "Foo", path: "src/.vscode" };
+	assert.equal(excludeNoisyDirs(vscode), true, ".vscode is not .vs");
+});
+
+test("points rg at the bundled ripgrep.conf when it exists", () => {
+	const bundle = mkdtempSync(join(tmpdir(), "harness-rg-"));
+	try {
+		const missing: NodeJS.ProcessEnv = {};
+		applyDefaults(missing, bundle, "linux");
+		assert.equal(missing.RIPGREP_CONFIG_PATH, undefined);
+		mkdirSync(join(bundle, "config"));
+		writeFileSync(join(bundle, "config", "ripgrep.conf"), "--glob=!.vs\n");
+		const env: NodeJS.ProcessEnv = {};
+		applyDefaults(env, bundle, "linux");
+		assert.equal(env.RIPGREP_CONFIG_PATH, join(bundle, "config", "ripgrep.conf"));
+		const custom: NodeJS.ProcessEnv = { RIPGREP_CONFIG_PATH: "mine.conf" };
+		applyDefaults(custom, bundle, "linux");
+		assert.equal(custom.RIPGREP_CONFIG_PATH, "mine.conf");
+	} finally {
+		rmSync(bundle, { recursive: true, force: true });
+	}
+});
+
 test("fills bundle defaults only where unset", () => {
-	const env: NodeJS.ProcessEnv = { PI_LENS_CONFIG_PATH: "custom.json" };
-	applyDefaults(env, "/b", "/agent", "linux");
-	assert.equal(env.HARNESS_LSP_CONFIG, join("/b", "config", "lsp.json"));
-	assert.equal(env.PI_LENS_HOME, join("/agent", "pi-lens"));
-	assert.equal(env.PI_LENS_DISABLE_TOOL_INSTALL, "1");
-	assert.equal(env.PI_LENS_CONFIG_PATH, "custom.json");
+	const env: NodeJS.ProcessEnv = { DOTNET_NOLOGO: "0" };
+	applyDefaults(env, "/b", "linux");
+	assert.equal(env.HARNESS_BUNDLE_ROOT, "/b");
+	assert.equal(env.DOTNET_NOLOGO, "0");
+	assert.equal(env.DOTNET_CLI_TELEMETRY_OPTOUT, "1");
 	assert.equal(env.PI_SUBAGENT_PI_BINARY, undefined, "pi.exe is only used on Windows when it exists");
 });
 
@@ -39,8 +74,8 @@ test("prepends existing bundle tool folders to PATH once, keeping the variable's
 		mkdirSync(redis, { recursive: true });
 		mkdirSync(python, { recursive: true });
 		const env: NodeJS.ProcessEnv = { Path: ["C:\\Windows", join(bundle, "bin"), redis, redis].join(delimiter) };
-		applyDefaults(env, bundle, "/agent", "linux");
-		applyDefaults(env, bundle, "/agent", "linux");
+		applyDefaults(env, bundle, "linux");
+		applyDefaults(env, bundle, "linux");
 		assert.equal(env.Path, [join(bundle, "bin"), redis, python, "C:\\Windows"].join(delimiter));
 		assert.equal(env.PATH, undefined);
 	} finally {
@@ -49,9 +84,9 @@ test("prepends existing bundle tool folders to PATH once, keeping the variable's
 });
 
 test("replaces Bash with the bundle's PowerShell tools on Windows", () => {
-	const registered = ["read", "bash", "powershell", "edit", "write", "grep", "find", "ls", "lsp_hover"];
-	assert.deepEqual(windowsToolSet(["read", "bash", "edit", "write", "lsp_hover"], registered, "win32"),
-		["read", "powershell", "edit", "write", "grep", "find", "ls", "lsp_hover"]);
+	const registered = ["read", "bash", "powershell", "edit", "write", "grep", "find", "ls", "todo"];
+	assert.deepEqual(windowsToolSet(["read", "bash", "edit", "write", "todo"], registered, "win32"),
+		["read", "powershell", "edit", "write", "grep", "find", "ls", "todo"]);
 	assert.deepEqual(windowsToolSet(["read", "bash", "edit", "write", "powershell"], registered, "win32"),
 		["read", "powershell", "edit", "write", "grep", "find", "ls"], "an extension shell override must still disable default Bash");
 	assert.equal(windowsToolSet(["read", "powershell", "edit"], registered, "win32"), undefined, "configured sets are kept");
@@ -68,18 +103,18 @@ test("restores Windows shell discovery paths without replacing existing tools or
 		writeFileSync(join(powershell, "powershell.exe"), "fixture");
 		const bundle = join(root, "bundle");
 		const env: NodeJS.ProcessEnv = { SystemRoot: root, Path: "custom-tools" };
-		applyDefaults(env, bundle, "/agent", "win32");
-		applyDefaults(env, bundle, "/agent", "win32");
+		applyDefaults(env, bundle, "win32");
+		applyDefaults(env, bundle, "win32");
 		assert.equal(env.Path, ["custom-tools", system32, powershell].join(delimiter));
 		assert.equal(env.PATH, undefined, "preserves PATH variable casing");
 
 		const existing = [system32, powershell].map((dir) => dir.toUpperCase() + "\\").join(delimiter);
 		const configured: NodeJS.ProcessEnv = { SystemRoot: root, PATH: existing };
-		applyDefaults(configured, bundle, "/agent", "win32");
+		applyDefaults(configured, bundle, "win32");
 		assert.equal(configured.PATH, existing, "Windows paths compare without case or trailing separator differences");
 
 		const unix: NodeJS.ProcessEnv = { SystemRoot: root, PATH: "custom-tools" };
-		applyDefaults(unix, bundle, "/agent", "darwin");
+		applyDefaults(unix, bundle, "darwin");
 		assert.equal(unix.PATH, "custom-tools");
 	} finally {
 		rmSync(root, { recursive: true, force: true });
@@ -91,7 +126,7 @@ test("does not add missing Windows executables to PATH", () => {
 	try {
 		mkdirSync(join(root, "System32", "WindowsPowerShell", "v1.0"), { recursive: true });
 		const env: NodeJS.ProcessEnv = { SystemRoot: root, PATH: "custom-tools" };
-		applyDefaults(env, join(root, "bundle"), "/agent", "win32");
+		applyDefaults(env, join(root, "bundle"), "win32");
 		assert.equal(env.PATH, "custom-tools");
 	} finally {
 		rmSync(root, { recursive: true, force: true });
@@ -105,7 +140,7 @@ test("pi executes Windows PowerShell when the inherited PATH has no system tools
 	try {
 		process.env[pathKey] = root;
 		const env = { ...process.env };
-		applyDefaults(env, join(root, "bundle"), join(root, "agent"));
+		applyDefaults(env, join(root, "bundle"));
 		process.env[pathKey] = env[pathKey];
 		// pi 1.4.0 also falls back to ProgramFiles\PowerShell\7 and SystemRoot, so either shell is acceptable here.
 		assert.match(getPowerShellConfig().shell, /(?:pwsh|powershell)\.exe$/i);

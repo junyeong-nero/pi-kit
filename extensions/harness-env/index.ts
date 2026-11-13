@@ -1,12 +1,13 @@
-// 배포본을 pi 패키지로 불러올 때 언어 서버·pi-lens·동봉 도구가 동작하도록 환경 기본값을 채우는 확장.
+// 배포본을 pi 패키지로 불러올 때 동봉 도구가 동작하도록 환경 기본값을 채우는 확장.
 // pi는 확장을 목록 순서대로 불러오므로 패키지 매니페스트의 첫 번째에 둔다. 이미 설정된 값은 바꾸지 않는다.
 import { existsSync, readFileSync } from "node:fs";
 import { delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createPowerShellToolDefinition, getAgentDir, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { createPowerShellToolDefinition, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { formatScan, scanEncodings } from "./encoding.ts";
 import { createEncodingAwareTools } from "./file-tools.ts";
 import { createWindowsPowerShellOperations } from "./powershell.ts";
+import { excludeNoisyDirs } from "./search-excludes.ts";
 import { repairPowerShellArgs } from "./tool-args.ts";
 
 export function bundleRootOf(moduleUrl: string): string {
@@ -14,30 +15,31 @@ export function bundleRootOf(moduleUrl: string): string {
 }
 
 /** 배포본 기본값을 비어 있는 변수에만 채운다. 이 프로세스와 자식 프로세스에만 적용된다. */
-export function applyDefaults(env: NodeJS.ProcessEnv, bundle: string, agentDir: string, platform = process.platform): void {
+export function applyDefaults(env: NodeJS.ProcessEnv, bundle: string, platform = process.platform): void {
 	const defaults: Record<string, string> = {
 		HARNESS_BUNDLE_ROOT: bundle,
-		HARNESS_LSP_CONFIG: join(bundle, "config", "lsp.json"),
-		PI_LENS_HOME: join(agentDir, "pi-lens"),
-		PI_LENS_CONFIG_PATH: join(bundle, "config", "pi-lens.json"),
-		PI_LENS_DISABLE_LSP_INSTALL: "1",
-		PI_LENS_DISABLE_TOOL_INSTALL: "1",
 		DOTNET_CLI_TELEMETRY_OPTOUT: "1",
 		DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1",
 		DOTNET_GENERATE_ASPNET_CERTIFICATE: "false",
 		DOTNET_NOLOGO: "1",
 		DOTNET_CLI_WORKLOAD_UPDATE_NOTIFY_DISABLE: "true",
+		// 폐쇄망 배포본: 동봉 패키지(playwriter 등)의 익명 사용 통계를 끈다.
+		DO_NOT_TRACK: "1",
+		PLAYWRITER_TELEMETRY: "0",
 	};
 	const piExe = join(bundle, "bin", "pi", "pi.exe");
 	if (platform === "win32" && existsSync(piExe)) defaults.PI_SUBAGENT_PI_BINARY = piExe;
+	// powershell로 직접 실행하는 rg가 .vs·.svn·.git을 뒤지지 않게 한다(pi의 grep 도구는 --no-config라 아래 tool_call에서 처리).
+	const ripgrepConfig = join(bundle, "config", "ripgrep.conf");
+	if (existsSync(ripgrepConfig)) defaults.RIPGREP_CONFIG_PATH = ripgrepConfig;
 	for (const [name, value] of Object.entries(defaults)) if (!env[name]) env[name] = value;
 
-	// 동봉된 fd·rg·SVN·Redis·ast-grep이 기존 설치보다 먼저 선택되도록 프로세스 PATH 앞에 둔다.
+	// 동봉된 fd·rg·SVN·Redis가 기존 설치보다 먼저 선택되도록 프로세스 PATH 앞에 둔다.
 	const pathKey = Object.keys(env).find((key) => key.toUpperCase() === "PATH") ?? "PATH";
 	const current = (env[pathKey] ?? "").split(delimiter).filter(Boolean);
 	const pathId = (path: string) => platform === "win32" ? path.replaceAll("/", "\\").replace(/\\+$/, "").toLowerCase() : path;
 	const known = new Set(current.map(pathId));
-	const extra = [join(bundle, "bin"), join(bundle, "bin", "pi"), join(bundle, "bin", "svn", "bin"), join(bundle, "bin", "redis"), join(bundle, "runtime", "python"), join(bundle, "vendor", "extensions", "node_modules", "@ast-grep", "cli")]
+	const extra = [join(bundle, "bin"), join(bundle, "bin", "pi"), join(bundle, "bin", "svn", "bin"), join(bundle, "bin", "redis"), join(bundle, "runtime", "python")]
 		.filter((dir) => existsSync(dir));
 	const bundled = new Set(extra.map(pathId));
 	// pi 0.87.1은 where.exe로만 PowerShell을 찾는다. 두 경로가 PATH에서 빠져 있어도
@@ -61,7 +63,7 @@ export function windowsToolSet(active: string[], registered: string[], platform 
 }
 
 const bundle = bundleRootOf(import.meta.url);
-applyDefaults(process.env, bundle, getAgentDir());
+applyDefaults(process.env, bundle);
 
 export default function (pi: ExtensionAPI) {
 	// read·edit·write: 원래 인코딩(CP949·UTF-16·BOM)을 유지한다. 도구 이름·스키마는 pi 것 그대로라 프롬프트가 늘지 않는다.
@@ -83,6 +85,10 @@ export default function (pi: ExtensionAPI) {
 	pi.on("message_end", (event) => {
 		const message = repairPowerShellArgs(event.message);
 		return message ? { message } : undefined;
+	});
+	// Visual Studio가 디버깅 중 잠그는 .vs와 VCS 폴더를 grep 기본 검색에서 뺀다.
+	pi.on("tool_call", (event) => {
+		if (event.toolName === "grep") excludeNoisyDirs(event.input as { glob?: unknown; path?: unknown });
 	});
 	pi.on("session_start", () => {
 		const tools = windowsToolSet(pi.getActiveTools(), pi.getAllTools().map((tool) => tool.name));

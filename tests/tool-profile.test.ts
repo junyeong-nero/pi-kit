@@ -4,14 +4,13 @@ import { normalizeBuildSystemPromptOptions } from "../node_modules/@earendil-wor
 import { GROUPS, selectTools, trimBundledPrompt } from "../extensions/tool-profile/index.ts";
 
 test("default keeps core and user tools; groups can enable and disable without duplication", () => {
-	const registered = ["read", "find_symbol", "lsp_diagnostics", "custom_tool", "harness_tools", ...Object.values(GROUPS).flat()];
-	const base = ["read", "find_symbol", "lsp_diagnostics", "custom_tool", "harness_tools"];
+	const registered = ["read", "grep", "custom_tool", "harness_tools", ...Object.values(GROUPS).flat()];
+	const base = ["read", "grep", "custom_tool", "harness_tools"];
 	assert.deepEqual(selectTools(registered, registered, new Set()), base);
-	const enabled = selectTools(base, registered, new Set(["code"]));
-	for (const name of GROUPS.code) assert.ok(enabled.includes(name));
-	assert.ok(!enabled.includes("subagent"));
+	const enabled = selectTools(base, registered, new Set(["subagents"]));
+	for (const name of GROUPS.subagents) assert.ok(enabled.includes(name));
 	assert.deepEqual(selectTools(enabled, registered, new Set()), base);
-	assert.deepEqual(selectTools(enabled, registered, new Set(["code"])), enabled);
+	assert.deepEqual(selectTools(enabled, registered, new Set(["subagents"])), enabled);
 	assert.deepEqual(selectTools(["read"], ["read"], new Set(["subagents"])), ["read"]);
 	// pi's MCP support activates tool_search and the MCP tools it loads; the profile leaves them alone.
 	const mcp = ["tool_search", "mcp__build_center__get_results"];
@@ -21,7 +20,7 @@ test("default keeps core and user tools; groups can enable and disable without d
 test("trim only bundled optional skills/catalog; user/project context survives", () => {
 	const options = normalizeBuildSystemPromptOptions({ cwd: "/project", sections: { advertised_subagents: "large catalog", custom: "keep" },
 		skills: [
-            { name: "pi-lens-ast-grep", description: "AST", filePath: "/bundle/vendor/extensions/node_modules/pi-lens/skills/ast/SKILL.md", baseDir: "/bundle", sourceInfo: { path: "/bundle", source: "package", scope: "user", origin: "package" }, disableModelInvocation: false },
+            { name: "pi-subagents", description: "Delegate", filePath: "/bundle/vendor/extensions/node_modules/pi-subagents/skills/pi-subagents/SKILL.md", baseDir: "/bundle", sourceInfo: { path: "/bundle", source: "package", scope: "user", origin: "package" }, disableModelInvocation: false },
             { name: "custom", description: "Custom", filePath: "/project/skills/custom/SKILL.md", baseDir: "/project", sourceInfo: { path: "/project", source: "project", scope: "project", origin: "top-level" }, disableModelInvocation: false },
 		] });
 	trimBundledPrompt(options, "/bundle", new Set());

@@ -4,31 +4,10 @@
 
 ## 프로젝트 준비
 
-언어 서버가 제대로 동작하려면 작업할 프로젝트 쪽에서도 준비가 필요합니다.
+배포본은 언어 서버와 SDK를 동봉하지 않습니다. 모델은 `grep`·`read`로 코드를 탐색하고, 컴파일 오류는 프로젝트 빌드로 확인합니다.
 
-### C/C++
-
-clangd는 `compile_commands.json`에서 헤더 경로·매크로·컴파일 옵션을 읽습니다. 간단한 프로젝트는 `compile_flags.txt`로도 충분합니다.
-
-CMake와 Ninja를 쓰면 이렇게 만들 수 있습니다.
-
-```powershell
-cmake -S . -B build -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-```
-
-Visual Studio generator는 이 옵션을 써도 `compile_commands.json`을 만들지 않습니다. `.vcxproj` 프로젝트는 실제 빌드 설정에 맞는 컴파일 정보나 `.clangd` 설정을 따로 준비해야 합니다. MSVC STL, Windows SDK, MFC, 외부 헤더도 개발 PC에 있어야 합니다.
-
-서버 경로나 컴파일 정보 위치를 바꾸려면 [config/lsp.json](../config/lsp.json)과 [LSP 서버 설정](../extensions/cpp-csharp-lsp-lite/README.md#서버-설정)을 보세요.
-
-### C#
-
-`.sln`·`.slnx`·`.csproj`와 프로젝트 의존성은 기존 개발 환경에서 준비합니다. 사내 NuGet 소스·캐시·복원 절차는 프로젝트가 관리하고, 배포본은 이를 덮어쓰거나 복원 스크립트를 제공하지 않습니다.
-
-언어 서버를 실행하는 SDK와 프로젝트가 요구하는 SDK는 다를 수 있습니다. 프로젝트에 맞게 다음을 확인하세요.
-
-- `global.json`이 지정한 SDK와 대상 프레임워크의 참조 팩
-- .NET Framework targeting pack
-- Windows 전용 workload와 기존 MSBuild 프로젝트의 빌드 도구
+- **C/C++(MFC):** 기존 Visual Studio·Build Tools의 MSBuild와 MSVC STL·Windows SDK·MFC·외부 헤더를 씁니다. `setup.ps1`은 찾은 MSBuild를 시스템 PATH와 `HSC_MSBUILD_EXE`에 등록합니다.
+- **C#(WPF):** `.sln`·`.slnx`·`.csproj`, `global.json`이 지정한 SDK, .NET Framework targeting pack, 사내 NuGet 소스·캐시·복원 절차는 기존 개발 환경을 그대로 씁니다. 배포본은 이를 덮어쓰거나 복원 스크립트를 제공하지 않습니다.
 
 ## 배포
 
@@ -44,7 +23,7 @@ Visual Studio generator는 이 옵션을 써도 `compile_commands.json`을 만�
 - **버전 고정:** 실행 파일은 [config/offline-artifacts.lock.json](../config/offline-artifacts.lock.json), 확장 의존성은 `config/extensions/package-lock.json`, Python 패키지는 `config/redis/requirements.lock`에 버전과 해시를 고정합니다.
 - **ZIP에서 빼는 것:** 실행 파일은 Git에 넣지 않습니다. 실제 `models.json`, `agent/`, `config/` 아래 세션·캐시, 실제 Redis 매핑(`server_IP_mappings.json`·`owners.json`)은 ZIP에도 넣지 않습니다.
 
-ZIP에는 pi, fd·rg, SVN, Redis 서버와 CLI, clangd, csharp-ls, 서버용 .NET SDK, 동봉 Python과 MCP용 Node, 직접 만든 확장, pi-lens·pi-subagents·pi-usage·pi-allowlist-plugin·pi-tool-repair·pi-plan-mode·pi-context-footer·rpiv-ask-user-question·rpiv-todo, Playwright MCP, Windows용 네이티브 파일과 WASM 리소스가 들어갑니다.
+ZIP에는 pi, fd·rg, SVN, Redis 서버와 CLI, 동봉 Python과 MCP용 Node, 직접 만든 확장, pi-subagents·pi-usage·pi-allowlist-plugin·pi-tool-repair·pi-plan-mode·pi-context-footer·rpiv-ask-user-question·rpiv-todo, Playwright MCP, Windows-MCP(동봉 Python 패키지), Windows용 네이티브 파일과 WASM 리소스가 들어갑니다.
 
 ### Actions를 쓸 수 없을 때: Windows 로컬 패키징
 
@@ -119,20 +98,18 @@ foreach ($file in $manifest.files.PSObject.Properties) {
 
 $env:USAGE_TEST_BUNDLE = $bundle
 $env:EDGE_TEST_BUNDLE = $bundle
-$env:TEST_BUNDLE = $bundle
-$env:TEST_CLANGD = "$bundle\bin\clangd\bin\clangd.exe"
-$env:TEST_DOTNET = "$bundle\runtime\dotnet\dotnet.exe"
+$env:WINDOWS_MCP_TEST_BUNDLE = $bundle
 try {
     npm run test:usage
     if ($LASTEXITCODE) { throw 'token usage test failed' }
     npm run test:edge
     if ($LASTEXITCODE) { throw 'Edge MCP test failed' }
-    node --experimental-strip-types tests/integration.ts
-    if ($LASTEXITCODE) { throw 'language server integration failed' }
+    npm run test:windows-mcp
+    if ($LASTEXITCODE) { throw 'Windows-MCP test failed' }
     py -3.13 tests/pi-standalone.py "$bundle" --direct
     if ($LASTEXITCODE) { throw 'standalone pi test failed' }
 } finally {
-    Remove-Item Env:USAGE_TEST_BUNDLE, Env:EDGE_TEST_BUNDLE, Env:TEST_BUNDLE, Env:TEST_CLANGD, Env:TEST_DOTNET -ErrorAction SilentlyContinue
+    Remove-Item Env:USAGE_TEST_BUNDLE, Env:EDGE_TEST_BUNDLE, Env:WINDOWS_MCP_TEST_BUNDLE -ErrorAction SilentlyContinue
 }
 ```
 
@@ -154,11 +131,11 @@ try {
 
 ZIP을 한글·공백이 들어간 다른 경로로 옮긴 뒤 아래를 검사합니다. Windows CI가 실행되지 않았다면 배포 검증이 끝난 것이 아닙니다.
 
-- 파일 해시와 실제 언어 서버 동작, 확장 로딩, pi 모델 API 스모크 테스트
+- 파일 해시, 확장 로딩, Windows-MCP 실행, pi 모델 API 스모크 테스트
 - Redis: 별도 Redis·.NET 설치 없이 직접 실행과 래퍼 실행, 인증·조회·Lua·벤치마크·RDB 저장과 재시작 후 복원, 저장 파일 검사 도구, Sentinel
 - 빌드센터 MCP: Python 회귀 테스트(`tests/build_center_mcp_test.py`), `config/mcp.json`의 명령 그대로 동봉 Python 서버를 띄워 인증된 Redis의 모듈 100개를 조회하는 통합 테스트(`tests/build-center-mcp-bundle.py`), 실제 pi에서 `tool_search` → `mcp__build_center__list_projects`를 호출하는 스모크 테스트(`tests/pi-standalone.py`, `tests/prompt-footprint.py`). 사내 Redis에는 접속하지 않습니다.
 - Edge MCP: `tests/edge_mcp_test.py`로 런처의 동봉 Node 선택·누락 오류·stdio 전달을 검사합니다. ZIP 재배치 후 `npm run test:edge`가 실제 동봉 Python→Node→MCP를 실행하고 별도 테스트 프로필의 Edge에 CDP로 연결해 로그인 쿠키 재사용·폼 입력·클릭·연결 해제 후 브라우저 유지 여부를 검사합니다. 실제 사내 페이지나 사용자의 평소 Edge 프로필은 사용하지 않습니다. macOS에서는 Edge가 없으면 설치된 Chrome으로 CDP 경로만 검증할 수 있으며, Windows 검증을 대체하지 않습니다.
-- MSBuild: PowerShell 5.1에서 설치 유무와 표준 경로 탐색, 실제 Visual Studio MSBuild로 시스템 변수·PATH·반복 설정과 샘플 프로젝트 빌드, 그 뒤 C++·C# 언어 서버 통합 테스트
+- MSBuild: PowerShell 5.1에서 설치 유무와 표준 경로 탐색, 실제 Visual Studio MSBuild로 시스템 변수·PATH·반복 설정과 샘플 프로젝트 빌드
 
 배포 폴더에서 필수 파일만 빠르게 확인하려면 아래 명령을 씁니다. 아무것도 바꾸지 않습니다.
 
@@ -173,11 +150,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\setup.ps1 -Check
 - 불러올 확장·스킬·프롬프트는 루트 [package.json](../package.json)의 `pi` 항목 한 곳에서 관리합니다. 새 확장은 이 목록에 넣으세요. 빠진 확장은 `tests/extensions-loader.mjs`가 잡아냅니다.
 - `harness-env`는 목록의 첫 번째여야 합니다. 뒤따르는 확장이 쓰는 환경 변수 기본값을 먼저 채우기 때문입니다. `tool-profile`은 마지막에 둡니다.
 - `setup.ps1`이 `PI_CODING_AGENT_DIR`을 `<배포 폴더>\config`로 설정하므로, pi는 `config/`를 설정 폴더로 씁니다. [config/settings.json](../config/settings.json)의 `"packages": [".."]`가 배포 폴더를 패키지로 불러오고, [config/AGENTS.md](../config/AGENTS.md)는 전역 AGENTS.md로 들어갑니다.
-- `config/`는 pi가 세션·캐시를 쓰는 폴더이기도 합니다. 패키징할 때 `models.json`, `auth.json`, `sessions/`, `pi-lens/` 등을 빼고, `.gitignore`도 같은 파일을 무시합니다.
+- `config/`는 pi가 세션·캐시를 쓰는 폴더이기도 합니다. 패키징할 때 `models.json`, `auth.json`, `sessions/` 등을 빼고, `.gitignore`도 같은 파일을 무시합니다.
 
 외부 확장의 설정 위치는 다음과 같습니다.
 
-- **pi-lens:** [config/pi-lens.json](../config/pi-lens.json). 자체 LSP와 `lsp_navigation`은 끄고 하네스의 C++·C# LSP 도구를 씁니다. 상태와 로그는 `config/pi-lens/`에 쌓입니다.
 - **pi-subagents:** [config/extensions/subagent/config.json](../config/extensions/subagent/config.json). Windows에서는 `async: false`를 쓰고 WorkflowScript에도 명시하세요. [백그라운드 실행의 지원 범위](https://github.com/nicobailon/pi-subagents/blob/main/docs/standalone-background.md)를 참고하세요.
 - **MCP 서버:** [config/mcp.json](../config/mcp.json). pi 내장 MCP 기능이 읽습니다. 빌드센터 설정과 매핑은 `config/redis/`에 있습니다. [빌드센터 MCP 안내](../mcp/build-center/README.md)와 [Edge MCP 안내](../mcp/edge/README.md)를 보세요.
 
@@ -193,7 +169,6 @@ MSBuild는 [vswhere 방식](https://github.com/microsoft/vswhere/wiki/Find-MSBui
 - **찾았을 때:** 경로를 시스템 `HSC_MSBUILD_EXE`에 기록하고, 그 폴더를 시스템 PATH의 동봉 도구 다음에 넣습니다.
 - **못 찾았을 때:** 기존 MSBuild 설정을 그대로 둡니다.
 - **`MSBUILD_EXE_PATH`를 쓰지 않는 이유:** MSBuild 자체의 이 변수를 시스템에 지정하면 `dotnet`이 Visual Studio의 SDK resolver를 잘못 불러올 수 있습니다.
-- **서버용 .NET SDK는 PATH에 넣지 않습니다.**
 
 ## 개발 테스트
 
@@ -206,16 +181,14 @@ npm run typecheck
 pwsh -NoProfile -File tests/environment.ps1
 ```
 
-실제 서버와 외부 확장이 로컬에 준비돼 있다면 통합 테스트도 돌릴 수 있습니다.
+외부 확장(`vendor/extensions`)이 로컬에 준비돼 있다면 로더·스모크 테스트도 돌릴 수 있습니다.
 
 ```sh
-node --experimental-strip-types tests/integration.ts
-node tests/pi-loader.mjs
 node tests/extensions-loader.mjs
 python3 tests/pi-standalone.py . --node-cli
 ```
 
-C# 통합 테스트의 dotnet 경로는 `TEST_DOTNET`, clangd 경로는 `TEST_CLANGD`로 바꿉니다. `--node-cli`는 로컬 clangd와 Node.js용 pi를 씁니다.
+`--node-cli`는 Node.js용 pi를 씁니다.
 
 Windows 배포 폴더는 `tests/pi-standalone.py`를 관리자 권한으로 실행해 검증합니다.
 

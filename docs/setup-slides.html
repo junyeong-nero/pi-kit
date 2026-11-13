@@ -196,6 +196,7 @@
 <div class="eyebrow">cpp-csharp-lsp-lite</div>
 <h1>폐쇄망에서<br>코드 수정과 검증을 연결하기</h1>
 <p class="lead">사내 LLM · pi 실행 환경 · C++ / C# 언어 서버를 결합한<br>코딩 에이전트의 설계와 검증</p>
+<p class="source">참고: v0.3 이전 설계 기록입니다. 현재 배포본은 경량화를 위해 언어 서버(LSP)를 제거했습니다.</p>
 <div class="toc"><a href="#3">문제 배경</a><a href="#7">설계 선택</a><a href="#9">LSP</a><a href="#15">검증</a><a href="#19">설치 부록</a>
 </div>
 </div>
@@ -612,12 +613,6 @@ buffer.read();  <span class="c">// Buffer::read</span>
 <td>기존 언어 서버 연결과 편집 후 진단 유지</td>
 </tr>
 <tr>
-<td><strong>pi-lens 4.4.3</strong>
-</td>
-<td>구조 분석·추가 진단·심볼 탐색</td>
-<td>자체 LSP 끔, 분석 WASM·ast-grep 동봉</td>
-</tr>
-<tr>
 <td><strong>pi-subagents 0.79.1</strong>
 </td>
 <td>조사·구현·검토 등의 작업 위임</td>
@@ -627,7 +622,7 @@ buffer.read();  <span class="c">// Buffer::read</span>
 </table>
 <div class="callout info"><b>운영 경계</b><span>추가 린터는 준비된 도구 범위에서 사용. Windows background 서브에이전트는 실험적 지원.</span>
 </div>
-<p class="source"><a href="https://github.com/apmantza/pi-lens">pi-lens</a> · <a href="https://github.com/nicobailon/pi-subagents/blob/main/docs/standalone-background.md">pi-subagents standalone 지원 범위</a> · config 및 버전 잠금 파일</p>
+<p class="source"><a href="https://github.com/nicobailon/pi-subagents/blob/main/docs/standalone-background.md">pi-subagents standalone 지원 범위</a> · config 및 버전 잠금 파일</p>
 <p class="takeaway">확장은 역할이 필요한 곳에 추가하고, 중복 분석과 실행 제약을 명시한다.</p>
 </div>
 <div class="foot"><span>cpp-csharp-lsp-lite · 기술 검토 및 구현 · 2026.09</span><span class="page"></span>
@@ -846,7 +841,7 @@ pi
 <div class="row">
 <div class="card tint">
 <h3>setup.ps1이 등록하는 시스템 변수</h3>
-<p>Path: bin(fd·rg) · bin\pi · SVN · ast-grep<br>PI_CODING_AGENT_DIR = 배포 폴더\config</p>
+<p>Path: bin(fd·rg) · bin\pi · SVN · Redis · Python<br>PI_CODING_AGENT_DIR = 배포 폴더\config</p>
 </div>
 <div class="card line">
 <h3>포함 제외</h3>
@@ -961,7 +956,7 @@ pi
 </tr>
 <tr>
 <td>확장 지원 범위</td>
-<td><a href="https://github.com/apmantza/pi-lens">pi-lens</a> · <a href="https://github.com/nicobailon/pi-subagents/blob/main/docs/standalone-background.md">pi-subagents standalone</a>
+<td><a href="https://github.com/nicobailon/pi-subagents/blob/main/docs/standalone-background.md">pi-subagents standalone</a>
 </td>
 </tr>
 <tr>

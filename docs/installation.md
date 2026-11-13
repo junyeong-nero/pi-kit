@@ -25,7 +25,7 @@ Get-FileHash .\pi-kit-win-x64.zip -Algorithm SHA256
 
 > GitHub 화면의 초록색 **Code → Download ZIP**(소스 코드)은 실행 파일이 없어 동작하지 않습니다. 반드시 Releases의 **pi-kit-win-x64.zip**을 받으세요.
 
-배포 ZIP에는 pi, 언어 서버(clangd·csharp-ls), 서버용 .NET SDK, 확장, fd·rg·SVN·Redis 서버와 CLI, Python·redis-py·빌드센터 MCP, Playwright MCP와 전용 Node 런타임이 모두 들어 있습니다. Edge는 PC에 설치된 브라우저를 사용하며, 연결 허용 방법은 [Edge MCP 안내](../mcp/edge/README.md)에 있습니다. 전용 Node는 시스템 PATH에 추가하지 않습니다.
+배포 ZIP에는 pi, 확장, fd·rg·SVN·Redis 서버와 CLI, Python·redis-py·빌드센터 MCP, Windows 화면 조작용 Windows-MCP, Playwright MCP와 전용 Node 런타임이 모두 들어 있습니다. Edge는 PC에 설치된 브라우저를 사용하며, 연결 허용 방법은 [Edge MCP 안내](../mcp/edge/README.md)에 있습니다. 전용 Node는 시스템 PATH에 추가하지 않습니다.
 
 ### 2단계. 폐쇄망 PC에 풀기
 
@@ -94,7 +94,7 @@ Setup complete. Fully close your terminal application, reopen it, and run 'pi' i
    ```
 4. "이 폴더의 구조를 간단히 설명해 줘"처럼 질문해 답이 오면 설치가 끝난 것입니다.
 
-확장, 스킬, 도구 가이드, 언어 서버가 함께 로드됩니다. 모델 응답을 받으려면 사내 API에 연결되어 있어야 합니다. 화면은 터미널 스크롤백을 그대로 쓰는 regular 모드로 시작합니다(`config\settings.json`의 `"tuiMode"`).
+확장, 스킬, 도구 가이드가 함께 로드됩니다. 모델 응답을 받으려면 사내 API에 연결되어 있어야 합니다. 화면은 터미널 스크롤백을 그대로 쓰는 regular 모드로 시작합니다(`config\settings.json`의 `"tuiMode"`).
 
 ### 6단계. 프로젝트에 AGENTS.md 두기 (권장)
 
@@ -112,7 +112,6 @@ Copy-Item D:\pi-kit\config\project-AGENTS.template.md D:\work\MyProject\AGENTS.m
 - **먼저 계획만 받고 싶을 때:** `/plan <작업>`으로 계획 모드를 시작하면 코드를 고치지 않고 조사·질문을 거쳐 변경 계획을 완성합니다. 계획이 완성되면 이 세션에서 구현할지, 새 세션에서 구현할지, 저장·내보내기할지 고릅니다. 진행 중에는 `/plan`으로 메뉴를 열어 상태를 보거나 계획 모드를 끕니다.
 - **명령은 대화로 요청합니다.** 입력창의 `!`·`!!`는 Bash 기능이라 이 PC에서는 동작하지 않습니다. "빌드해 줘", "`svn status` 보여 줘"처럼 요청하세요.
 - **멈추기·종료:** 모델 작업을 멈추려면 `Esc`, pi를 끝내려면 `/quit`를 입력하거나 `Ctrl+C`를 두 번 누릅니다.
-- 모델이 빌드·진단 없이 C++·C# 수정을 끝내려 하면 확장이 검증을 한 번 더 진행시킵니다. 모델이 스스로 이어서 작업하는 것이니 기다리면 됩니다.
 
 ## 문제가 생길 때
 
@@ -139,7 +138,7 @@ Copy-Item D:\pi-kit\config\project-AGENTS.template.md D:\work\MyProject\AGENTS.m
 
 | 변수 | 값 | 이유 |
 |---|---|---|
-| `Path` | `bin`(fd·rg), `bin\pi`(pi), `bin\svn\bin`(SVN), `bin\redis`(Redis 서버·CLI), `runtime\python`, ast-grep 폴더와 발견한 Visual Studio MSBuild 폴더 추가 | 어느 폴더에서나 `pi`·`python`·`msbuild` 실행, 동봉 도구 인식 |
+| `Path` | `bin`(fd·rg), `bin\pi`(pi), `bin\svn\bin`(SVN), `bin\redis`(Redis 서버·CLI), `runtime\python`과 발견한 Visual Studio MSBuild 폴더 추가(이전 릴리스가 넣은 ast-grep 폴더는 빼기) | 어느 폴더에서나 `pi`·`python`·`msbuild` 실행, 동봉 도구 인식 |
 | `HSC_MSBUILD_EXE` | 발견한 Visual Studio / Build Tools의 `MSBuild.exe` 전체 경로 | 설치된 MSBuild를 명시적인 경로로 사용 |
 | `PI_CODING_AGENT_DIR` | `<배포 폴더>\config` | pi가 모든 설정을 `config\`에서 읽음 |
 | `PI_OFFLINE`, `PI_TELEMETRY`, `PI_SKIP_VERSION_CHECK` | `1`, `0`, `1` | 시작할 때 외부 통신 안 함 |
@@ -175,15 +174,13 @@ pi는 `PI_CODING_AGENT_DIR`이 가리키는 `<배포 폴더>\config` 한 곳만 
 | `models.json` | 사내 API 주소·모델 (`models.example.json`을 복사해 만듦) | 처음 한 번, API가 바뀔 때 |
 | `settings.json` | 기본 도구, 배포본 패키지 등록(`".."`), 터미널 스크롤백을 쓰는 regular 화면 모드(`"tuiMode"`), compaction 여유(`compaction.reserveTokens`), footer의 컨텍스트 경고 기준(`contextFooter.warnTokens`) 등 pi 설정 | 필요할 때 |
 | `AGENTS.md` | 모든 프로젝트에 들어가는 도구 사용 가이드 | 공통 규칙을 더할 때 |
-| `lsp.json` | clangd·csharp-ls 실행 설정 | 서버 옵션을 바꿀 때 |
-| `pi-lens.json` | pi-lens 설정(숨길 도구 등) | 거의 없음 |
 | `extensions\subagent\config.json` | pi-subagents 설정 | 거의 없음 |
 | `pi-plan-mode.json` | 계획 모드에서 허용할 도구(`defaultPlanTools`)와 svn·git 조회 명령(`safeSubcommands`). `/plan settings`로도 바꿈 | 거의 없음 |
 | `extensions\pi-tool-repair.json` | pi-tool-repair 설정. `grammarRepair.enabled`가 `true`면 모델이 텍스트로 쓴 `<tool_call>` 같은 호출을 실제 도구 호출로 바꿈 | 거의 없음 |
 | `project-AGENTS.template.md` | 프로젝트별 AGENTS.md 템플릿 | 복사해서 사용 |
 | `offline-artifacts.lock.json`, `extensions\package*.json` | 배포 ZIP을 만들 때 쓰는 버전 고정 파일 | 고치지 않음 |
 
-pi가 실행 중에 만드는 대화 기록(`sessions\`)과 캐시(`pi-lens\` 등)도 `config\` 아래에 쌓입니다.
+pi가 실행 중에 만드는 대화 기록(`sessions\`)과 캐시도 `config\` 아래에 쌓입니다.
 
 ### 설정을 바꾸거나 배포본을 옮길 때
 
@@ -262,8 +259,8 @@ redis-cli -h <사내Redis주소> -p 6379 -n 0 SCAN 0 MATCH '업무:*' COUNT 100
 
 동봉한 [pi-allowlist-plugin](https://github.com/goldfix/pi-allowlist-plugin)의 `allowlist-gate`가 허용 목록에 없는 도구 호출을 실행 전에 멈추고 묻습니다. 승인 창에는 도구 이름과 명령·경로만 보입니다. 수정 내용 같은 자세한 입력은 pi 화면의 도구 호출 표시에서 `Ctrl+O`로 펼쳐 확인합니다. **Allow once / Allow for session / Allow & save rule (project)... / Deny** 중에서 고릅니다.
 
-- 승인 대상: `edit`·`write`, 허용 목록에 없는 `powershell` 명령, `subagent`, `ast_grep_replace` 등 상태를 바꿀 수 있는 도구
-- 묻지 않음: `read`·`grep`·`find`·`ls`, LSP·`find_symbol`·`module_report` 등 조회 도구, 빌드센터 조회 도구, `Get-ChildItem`·`Get-Content`·`Select-String`·`git status/diff/log`·`svn status/diff/log` 같은 읽기 명령
+- 승인 대상: `edit`·`write`, 허용 목록에 없는 `powershell` 명령, `subagent` 등 상태를 바꿀 수 있는 도구
+- 묻지 않음: `read`·`grep`·`find`·`ls`, 빌드센터 조회 도구, `Get-ChildItem`·`Get-Content`·`Select-String`·`git status/diff/log`·`svn status/diff/log` 같은 읽기 명령
 - `;`·`|`·`&&`로 이어진 명령은 하나씩 검사하므로 모든 부분이 허용 목록에 있어야 바로 실행됩니다. `>` 리다이렉션이 들어간 명령은 항상 묻습니다.
 - `Allow for session`은 같은 명령에만 적용되고 세션이 끝나면 사라집니다. `Allow & save rule`은 신뢰한 프로젝트의 `.pi/allowlist-gate.json`에 규칙을 저장합니다.
 

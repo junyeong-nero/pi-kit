@@ -4,29 +4,26 @@
 
 ## 기본 도구
 
-처음 모델 요청에 보이는 도구는 대화형 화면에서 13개입니다.
+처음 모델 요청에 보이는 도구는 대화형 화면에서 11개입니다.
 
 - 파일 작업 7개: `read`, `powershell`, `edit`, `write`, `grep`, `find`, `ls`
-- `find_symbol`, `lsp_diagnostics`
 - `ask_user_question`: 방향을 정해야 할 때 선택지로 사용자에게 묻는 대화 상자 (rpiv-ask-user-question). 화면이 없는 `pi -p` 실행에서는 확장이 스스로 숨깁니다.
 - `todo`: 여러 단계 작업의 진행 목록 (rpiv-todo). 상태는 세션 기록에 남고 `/todos`로 봅니다.
 - `harness_tools`: 아래 그룹을 켜고 끄는 도구
 - `tool_search`: MCP 도구를 찾아 다음 요청부터 노출하는 pi 내장 도구 (아래 [MCP 도구](#mcp-도구))
 
-도구를 숨겨도 안전장치 확장과 편집 후 진단은 그대로 동작합니다.
+도구를 숨겨도 안전장치 확장은 그대로 동작합니다.
 
 ## 필요할 때 켜는 그룹
 
 | 그룹 | 추가되는 도구 |
 | --- | --- |
-| `code` | `lsp_symbols`, `lsp_definition`, `lsp_references`, `lsp_hover`, `module_report`, `read_symbol` |
-| `ast` | `ast_grep_search`, `ast_grep_replace`, `pi_lens_activate_tools` |
 | `subagents` | `subagents_enable`, `subagent`, `bg_wait`, `subagent_supervisor` |
 
 ```text
-harness_tools({"group":"code"})
+harness_tools({"group":"subagents"})
 harness_tools({"action":"list"})
-harness_tools({"action":"disable","group":"code"})
+harness_tools({"action":"disable","group":"subagents"})
 ```
 
 - 켠 도구는 **다음 모델 요청부터** 쓸 수 있습니다. 켜는 것만으로 작업이 실행되지는 않습니다.
@@ -48,12 +45,11 @@ MCP 서버는 pi 내장 MCP 기능이 [config/mcp.json](../config/mcp.json)에�
 
 - `extensions/tool-profile/index.ts`가 이 일을 합니다. 확장 목록의 마지막에 로드되어 `session_start`와 `before_agent_start`에서, 다른 확장이 다시 켠 선택 도구까지 걸러 냅니다.
 - 이 배포본의 선택 도구 이름만 관리합니다. 사용자·프로젝트가 추가한 도구는 그대로 둡니다.
-- pi-lens와 겹치는 도구(`lens_diagnostics`, `symbol_search`, `project_report`, `read_enclosing`, `effective_config`, `ast_grep_outline`, `lens_diagnostic_mark`, `lsp_navigation`)는 [config/pi-lens.json](../config/pi-lens.json) 설정 때문에 아예 등록되지 않습니다. 이 파일을 바꾸면 기본 노출도 달라질 수 있습니다.
 
 ## 스킬과 프롬프트
 
 - 루트 `package.json`의 스킬·프롬프트 목록은 비어 있습니다.
-- pi-lens가 자동으로 추가하는 스킬은 `ast` 그룹을, 서브에이전트 카탈로그는 `subagents` 그룹을 켰을 때만 광고합니다. 사용자·프로젝트가 추가한 스킬과 다른 시스템 섹션은 그대로 둡니다.
+- 서브에이전트 스킬·카탈로그는 `subagents` 그룹을 켰을 때만 광고합니다. 사용자·프로젝트가 추가한 스킬과 다른 시스템 섹션은 그대로 둡니다.
 - 외부 확장의 파일은 `vendor/extensions`에 모두 동봉하므로 필요하면 `read`로 읽거나 직접 등록할 수 있습니다.
 - 공통 필수 규칙은 [config/AGENTS.md](../config/AGENTS.md)에, 긴 호출 예시와 운영 설명은 [tool-guide.md](tool-guide.md)에 둡니다.
 

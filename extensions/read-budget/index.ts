@@ -61,7 +61,7 @@ export async function budgetedLimit(input: ReadInput, cwd: string, budget: numbe
 }
 
 export const NOTE = (lines: number) =>
-	`[read-budget: 컨텍스트 여유에 맞춰 ${lines}줄만 읽었다. 필요한 부분은 rg·find_symbol로 위치를 찾은 뒤 offset·limit으로 읽어라.]`;
+	`[read-budget: 컨텍스트 여유에 맞춰 ${lines}줄만 읽었다. 필요한 부분은 grep으로 위치를 찾은 뒤 offset·limit으로 읽어라.]`;
 
 export default function (pi: ExtensionAPI) {
 	const trimmed = new Map<string, number>();

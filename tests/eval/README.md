@@ -2,7 +2,7 @@
 
 가이드나 확장을 바꿨을 때 약한 로컬 모델의 결과가 정말 좋아졌는지 재는 개발자 도구입니다. 배포 ZIP에는 들어가지 않고, 사용자 설치와도 관계없습니다.
 
-**필요한 것:** 저장소를 체크아웃하고 `npm ci`로 pi를 설치한 개발 PC, C++ 컴파일러(`c++`/`g++`), 그리고 원하면 `clangd`.
+**필요한 것:** 저장소를 체크아웃하고 `npm ci`로 pi를 설치한 개발 PC, C++ 컴파일러(`c++`/`g++`).
 
 > 성공률·턴 수·도구 호출 수는 **모델과 설정에 따라 크게 달라집니다.** 같은 모델로 같은 과제를 여러 번(`--repeat`) 돌려 비교하고, 모델을 바꾸면 기준 점수를 다시 재세요. 이 저장소의 샘플 과제 점수는 사내 작업 성능을 대표하지 않습니다.
 
@@ -26,7 +26,7 @@ tests/eval/
 node tests/eval/run.mjs --models-json ./models.json --provider <provider> --model <model id>
 ```
 
-같은 값을 환경 변수로도 줄 수 있습니다: `EVAL_MODELS_JSON`, `EVAL_PROVIDER`, `EVAL_MODEL`, `EVAL_TASKS`, `EVAL_PI`, `EVAL_CLANGD`, `EVAL_CXX`.
+같은 값을 환경 변수로도 줄 수 있습니다: `EVAL_MODELS_JSON`, `EVAL_PROVIDER`, `EVAL_MODEL`, `EVAL_TASKS`, `EVAL_PI`, `EVAL_CXX`.
 
 | 옵션 | 설명 |
 |---|---|
@@ -43,15 +43,15 @@ node tests/eval/run.mjs --models-json ./models.json --provider <provider> --mode
 | `--keep` | 작업 폴더를 지우지 않고 `results.json`에 경로를 남김 |
 | `--dry-run` | 모델을 부르지 않고 과제와 설정만 검증 |
 
-확장 이름은 `extensions/` 아래 폴더 이름(`cpp-csharp-lsp-lite`, `verify-guard`)과 동봉 확장 `pi-lens`, `pi-subagents`입니다. `lsp`는 `cpp-csharp-lsp-lite`의 별칭입니다. 기본 실행은 배포본처럼 모두 켜고 `config/settings.json`·`config/pi-lens.json`·`config/extensions/subagent/config.json`을 그대로 씁니다.
+확장 이름은 `extensions/` 아래 폴더 이름(`read-budget`, `auto-mode` 등)과 동봉 확장 `pi-subagents`입니다. 기본 실행은 배포본처럼 모두 켜고 `config/settings.json`·`config/extensions/subagent/config.json`을 그대로 씁니다.
 
 ### A/B 비교
 
 ```
-node tests/eval/run.mjs --models-json ./models.json --provider corp --model my-model --repeat 3 --ab verify-guard
+node tests/eval/run.mjs --models-json ./models.json --provider corp --model my-model --repeat 3 --ab read-budget
 ```
 
-`all`과 `no-verify-guard`의 성공률, 평균 턴, 평균 도구 호출, 반복 실패 합계, 평균 시간이 `summary.md`에 나란히 나옵니다. 원본 데이터는 `results.json`, pi의 JSON 이벤트 로그는 `logs/`에 있습니다.
+`all`과 `no-read-budget`의 성공률, 평균 턴, 평균 도구 호출, 반복 실패 합계, 평균 시간이 `summary.md`에 나란히 나옵니다. 원본 데이터는 `results.json`, pi의 JSON 이벤트 로그는 `logs/`에 있습니다.
 
 ### 기록하는 값
 

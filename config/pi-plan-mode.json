@@ -1,9 +1,7 @@
 {
   "defaultPlanTools": [
     "read", "powershell", "grep", "find", "ls",
-    "lsp_diagnostics", "lsp_symbols", "lsp_definition", "lsp_references", "lsp_hover",
-    "find_symbol", "module_report", "read_symbol", "ast_grep_search",
-    "pi_lens_activate_tools", "harness_tools", "tool_search", "ask_user_question", "todo",
+    "harness_tools", "tool_search", "ask_user_question", "todo",
     "mcp__build_center__list_projects", "mcp__build_center__find_modules", "mcp__build_center__resolve_owner",
     "mcp__build_center__get_results", "mcp__build_center__get_log"
   ],

@@ -16,12 +16,12 @@ steps.push({ tool: "bash", args: { command: "c++ -std=c++17 -fsyntax-only *.cpp"
 const tmp = mkdtempSync(join(tmpdir(), "eval-e2e-"));
 let fake;
 try {
-  for (const cfg of [{ label: "all", disabled: [] }, { label: "no-verify-guard", disabled: ["verify-guard"] }]) {
+  for (const cfg of [{ label: "all", disabled: [] }, { label: "no-read-budget", disabled: ["read-budget"] }]) {
     fake = await startFakeModel(steps);
     const modelsJson = join(tmp, "models.json");
     writeFileSync(modelsJson, JSON.stringify(fakeModelsJson(fake.port)));
     const pi = join(repoRoot, "node_modules/@earendil-works/pi-coding-agent/dist/cli.js");
-    const opts = { modelsJson, provider: "fake", model: "fake", pi, extensions: discoverExtensions(), extraExtensions: [], clangd: "clangd", guide: true, keep: false, logDir: join(tmp, "logs"), runIndex: 1 };
+    const opts = { modelsJson, provider: "fake", model: "fake", pi, extensions: discoverExtensions(), extraExtensions: [], guide: true, keep: false, logDir: join(tmp, "logs"), runIndex: 1 };
     const rec = await runOne(task, cfg, opts);
     fake.close();
     console.log(JSON.stringify(rec));

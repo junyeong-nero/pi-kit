@@ -1,5 +1,7 @@
 # 폐쇄망 코딩 에이전트 — 발표자 노트
 
+> **참고:** 이 발표 자료는 언어 서버(clangd·csharp-ls)와 cpp-csharp-lsp-lite 확장을 동봉하던 v0.3 이전 설계를 설명합니다. 현재 배포본은 경량화를 위해 LSP를 제거했습니다. 현재 구성은 [README](../README.md)를 보세요.
+
 자료: [setup-slides.html](setup-slides.html). 본문 18장 + 설치·근거 부록 4장. 권장 발표 시간 15–20분, 부록은 질의에 따라 사용한다.
 
 설명 원칙: 대상 환경의 설계 조건과 실제 조직 전체의 조사 결과를 혼동하지 않는다. 모델/제품 간 우위를 주장하지 않는다. 로컬 통합 테스트와 사내 업무 성과를 구분한다.
@@ -78,7 +80,7 @@ LSP는 분석 알고리즘이나 LLM이 아니라 통신 규약이다. 프로토
 
 ## 19. 현재 구성: setup.ps1로 한 번 설정하고 pi로 실행
 
-GitHub Actions가 검증해 Release에 올린 완성 ZIP 하나를 반입한다. GitHub 소스 ZIP이나 CI Artifact는 쓰지 않는다. setup.ps1(scripts/setup.ps1)는 pi를 실행하지 않고 한 번만 설정한다. 필수 파일을 확인하고, 시스템 Path에 `bin`·`bin\pi`·ast-grep 폴더를 넣고, `PI_CODING_AGENT_DIR`을 `config\`로 지정한다. `-Check`는 아무것도 바꾸지 않고 파일 존재 여부만 확인한다. models.json, settings.json, 전역 AGENTS.md 등 pi 설정은 모두 `config\` 한 곳에 있다.
+GitHub Actions가 검증해 Release에 올린 완성 ZIP 하나를 반입한다. GitHub 소스 ZIP이나 CI Artifact는 쓰지 않는다. setup.ps1(scripts/setup.ps1)는 pi를 실행하지 않고 한 번만 설정한다. 필수 파일을 확인하고, 시스템 Path에 `bin`·`bin\pi` 등 동봉 도구 폴더를 넣고, `PI_CODING_AGENT_DIR`을 `config\`로 지정한다. `-Check`는 아무것도 바꾸지 않고 파일 존재 여부만 확인한다. models.json, settings.json, 전역 AGENTS.md 등 pi 설정은 모두 `config\` 한 곳에 있다.
 
 ## 20. 압축 해제 → 사내 모델 설정 → setup.ps1 → pi
 

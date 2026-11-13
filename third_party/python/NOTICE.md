@@ -13,8 +13,16 @@ on the offline PC. All wheel license files and `.dist-info` metadata are retaine
 their hashes. The manifest of the complete ZIP covers every runtime file.
 
 Upstreams: https://www.python.org/, https://github.com/redis/redis-py,
-https://github.com/modelcontextprotocol/python-sdk. pi starts the server through
+https://github.com/modelcontextprotocol/python-sdk,
+https://github.com/CursorTouch/Windows-MCP (0.8.5, MIT). pi starts the servers through
 its built-in MCP support (`config/mcp.json`); no separate MCP client is bundled.
+
+Windows-MCP depends on fuzzywuzzy, Levenshtein and python-Levenshtein, which are
+licensed under GPL-2.0(-or-later). Their wheels, metadata and license files are
+bundled unmodified; sources are available from their upstream projects:
+https://github.com/seatgeek/fuzzywuzzy, https://github.com/rapidfuzz/Levenshtein,
+https://github.com/rapidfuzz/python-Levenshtein. Windows-MCP telemetry is disabled
+with `ANONYMIZED_TELEMETRY=false` in `config/mcp.json`.
 
 Real server mappings, owner mappings, credentials, sessions, and caches are not
 part of the release ZIP.

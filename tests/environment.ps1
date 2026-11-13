@@ -1,4 +1,4 @@
-# setup.ps1 must leave the developer's SDK and NuGet setup alone and keep the server SDK off the machine PATH.
+# setup.ps1 must leave the developer's SDK and NuGet setup alone and keep MCP-only runtimes off the machine PATH.
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 $setup = Get-Content (Join-Path $repo 'scripts/setup.ps1') -Raw
@@ -7,7 +7,6 @@ foreach ($name in @('DOTNET_ROOT', 'DOTNET_ROOT_X64', 'DOTNET_HOST_PATH', 'DOTNE
 }
 $pathDirs = [regex]::Match($setup, '(?m)^\$pathDirs = .*$').Value
 if (-not $pathDirs) { throw 'Machine PATH folder list not found in setup.ps1' }
-if ($pathDirs -match 'runtime\\dotnet') { throw 'Server SDK added to the machine PATH' }
 if ($pathDirs -match 'runtime\\node') { throw 'MCP-only Node runtime added to the machine PATH' }
 if ($pathDirs -notmatch 'runtime\\python') { throw 'Bundled Python missing from the machine PATH' }
 $setupFiles = @(Get-Item (Join-Path $repo 'setup.ps1')) + @(Get-ChildItem (Join-Path $repo 'scripts') -Filter '*.ps1')

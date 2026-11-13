@@ -1,6 +1,6 @@
 # Edge 웹 업무 MCP
 
-Microsoft의 [Playwright MCP](https://github.com/microsoft/playwright-mcp) 0.0.83을 pi 내장 MCP 기능으로 연결합니다. 사내 모델이 텍스트 형태의 페이지 구조를 읽고 탭 조회·버튼 클릭·폼 입력 등을 요청할 수 있습니다. 이미지 응답은 기본으로 끄므로 비전 모델이 필수는 아닙니다. 모델의 실제 도구 사용 정확도는 별도 확인이 필요합니다.
+Microsoft의 [Playwright MCP](https://github.com/microsoft/playwright-mcp) 0.0.85를 pi 내장 MCP 기능으로 연결합니다. 사내 모델이 텍스트 형태의 페이지 구조를 읽고 탭 조회·버튼 클릭·폼 입력 등을 요청할 수 있습니다. 이미지 응답은 기본으로 끄므로 비전 모델이 필수는 아닙니다. 모델의 실제 도구 사용 정확도는 별도 확인이 필요합니다.
 
 ## 연결하기
 

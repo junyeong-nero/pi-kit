@@ -9,11 +9,9 @@ import { listTaskDirs, loadTask, prepareWorkdir, runJudge, validateTask } from "
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const repoRoot = resolve(here, "../..");
-const EXT_ALIASES = { lsp: "cpp-csharp-lsp-lite" };
 
 // setup.ps1이 함께 불러오는 동봉 확장. 배포본과 같은 구성으로 평가하려고 있으면 포함한다.
 const VENDOR_EXTENSIONS = {
-  "pi-lens": "vendor/extensions/node_modules/pi-lens/dist/index.js",
   "pi-subagents": "vendor/extensions/node_modules/pi-subagents/index.js",
 };
 
@@ -31,7 +29,7 @@ export function discoverExtensions(root = repoRoot) {
 }
 
 export function parseList(value) {
-  return (value ?? "").split(",").map((s) => s.trim()).filter(Boolean).map((s) => EXT_ALIASES[s] ?? s);
+  return (value ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 }
 
 /** pi --mode json 출력(JSON Lines)에서 턴, 도구 호출, 반복 실패 횟수를 센다. */
@@ -74,15 +72,12 @@ export async function runOne(task, cfg, opts) {
   copyFileSync(join(repoRoot, "config/settings.json"), join(agent, "settings.json"));
   mkdirSync(join(agent, "extensions/subagent"), { recursive: true });
   copyFileSync(join(repoRoot, "config/extensions/subagent/config.json"), join(agent, "extensions/subagent/config.json"));
-  const lspConfig = join(tmp, "lsp.json");
-  writeFileSync(lspConfig, JSON.stringify({ servers: { cpp: { command: opts.clangd, args: ["--log=error"] } } }));
   const args = [];
   for (const [name, entry] of Object.entries(opts.extensions)) if (!cfg.disabled.includes(name)) args.push("-e", entry);
   for (const extra of opts.extraExtensions) args.push("-e", extra);
   args.push("--no-session", "--provider", opts.provider, "--model", opts.model, "--mode", "json", "-p", task.prompt);
   const { cmd, pre } = piCommand(opts.pi);
-  const env = { ...process.env, PI_OFFLINE: "1", PI_TELEMETRY: "0", PI_SKIP_VERSION_CHECK: "1", PI_CODING_AGENT_DIR: agent, HARNESS_LSP_CONFIG: lspConfig,
-    PI_LENS_HOME: join(tmp, "lens"), PI_LENS_CONFIG_PATH: join(repoRoot, "config/pi-lens.json"), PI_LENS_DISABLE_LSP_INSTALL: "1", PI_LENS_DISABLE_TOOL_INSTALL: "1" };
+  const env = { ...process.env, PI_OFFLINE: "1", PI_TELEMETRY: "0", PI_SKIP_VERSION_CHECK: "1", PI_CODING_AGENT_DIR: agent };
   const started = Date.now();
   let stdout = "", stderr = "", timedOut = false;
   const child = spawn(cmd, [...pre, ...args], { cwd: work, env, stdio: ["ignore", "pipe", "pipe"] });
@@ -147,7 +142,7 @@ async function main() {
     options: {
       tasks: { type: "string" }, filter: { type: "string" }, "models-json": { type: "string" }, provider: { type: "string" }, model: { type: "string" },
       pi: { type: "string" }, disable: { type: "string" }, only: { type: "string" }, ab: { type: "string" }, repeat: { type: "string", default: "1" },
-      out: { type: "string" }, label: { type: "string" }, clangd: { type: "string" }, "no-guide": { type: "boolean" }, keep: { type: "boolean" },
+      out: { type: "string" }, label: { type: "string" }, "no-guide": { type: "boolean" }, keep: { type: "boolean" },
       "dry-run": { type: "boolean" }, ext: { type: "string", multiple: true }, help: { type: "boolean", short: "h" },
     },
   });
@@ -175,7 +170,7 @@ async function main() {
   const repeat = Math.max(1, Number(v.repeat));
   const records = [];
   for (const cfg of configs) for (const task of tasks) for (let i = 1; i <= repeat; i++) {
-    const rec = await runOne(task, cfg, { modelsJson, provider, model, pi, extensions, extraExtensions: v.ext ?? [], clangd: v.clangd ?? process.env.EVAL_CLANGD ?? "clangd", guide: !v["no-guide"], keep: v.keep, logDir: join(outDir, "logs"), runIndex: i });
+    const rec = await runOne(task, cfg, { modelsJson, provider, model, pi, extensions, extraExtensions: v.ext ?? [], guide: !v["no-guide"], keep: v.keep, logDir: join(outDir, "logs"), runIndex: i });
     records.push(rec);
     console.log(`[${cfg.label}] ${task.id} #${i}: ${rec.pass ? "PASS" : "FAIL"} turns=${rec.turns} tools=${rec.toolCalls} repeats=${rec.repeatedFailures} ${rec.wallSec}s`);
   }

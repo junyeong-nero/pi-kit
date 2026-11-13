@@ -59,10 +59,10 @@ if (-not $Check -and -not $SystemOnly -and (Test-Path -LiteralPath $updateInfo -
         return
     }
 }
-$required = @("package.json", "extensions\harness-env\index.ts", "bin\pi\pi.exe", "bin\fd.exe", "bin\rg.exe", "bin\clangd\bin\clangd.exe",
+$required = @("package.json", "extensions\harness-env\index.ts", "bin\pi\pi.exe", "bin\fd.exe", "bin\rg.exe",
     "extensions\tool-profile\index.ts", "vendor\extensions\node_modules\pi-context-footer\extensions\footer.ts", "extensions\read-budget\index.ts", "docs\tool-guide.md",
     "runtime\python\python.exe", "runtime\python\python313.dll", "runtime\python\python313.zip", "runtime\python\python313._pth",
-    "runtime\python\Lib\site-packages\redis\__init__.py", "runtime\python\Lib\site-packages\mcp\__init__.py",
+    "runtime\python\Lib\site-packages\redis\__init__.py", "runtime\python\Lib\site-packages\mcp\__init__.py", "runtime\python\Lib\site-packages\windows_mcp\__main__.py",
     "runtime\python\Lib\site-packages\tzdata\__init__.py",
     "config\mcp.json", "mcp\build-center\main.py", "mcp\build-center\service.py",
     "runtime\node\node.exe", "runtime\node\LICENSE", "mcp\edge\edge_mcp.py", "config\playwright.json",
@@ -71,7 +71,7 @@ $required = @("package.json", "extensions\harness-env\index.ts", "bin\pi\pi.exe"
     "vendor\extensions\node_modules\@tian.zuo\pi-usage\index.ts",
     "config\redis\settings.json", "config\redis\server_IP_mappings.example.json", "config\redis\owners.example.json", "config\redis\requirements.lock",
     "third_party\python\PYTHON-LICENSE.txt", "third_party\python\PACKAGES.json", "third_party\python\NOTICE.md",
-    "extensions\harness-env\powershell.ts", "extensions\harness-env\encoding.ts", "extensions\harness-env\file-tools.ts", "vendor\extensions\node_modules\iconv-lite\encodings\tables\cp949.json",
+    "extensions\harness-env\powershell.ts", "extensions\harness-env\encoding.ts", "extensions\harness-env\file-tools.ts", "extensions\harness-env\search-excludes.ts", "config\ripgrep.conf", "vendor\extensions\node_modules\iconv-lite\encodings\tables\cp949.json",
     "bin\svn\bin\svn.exe", "bin\svn\bin\svnadmin.exe", "bin\svn\bin\libsvn_client-1.dll", "bin\svn\bin\vcruntime140.dll", "bin\svn\Licenses\Apache Subversion License.txt",
     "bin\redis\redis-cli.exe", "bin\redis\redis-server.exe", "bin\redis\msys-2.0.dll", "bin\redis\msys-crypto-3.dll", "bin\redis\msys-ssl-3.dll",
     "bin\redis\redis-benchmark.exe", "bin\redis\redis-check-aof.exe", "bin\redis\redis-check-rdb.exe", "bin\redis\redis-sentinel.exe", "bin\redis\RedisService.exe",
@@ -79,15 +79,12 @@ $required = @("package.json", "extensions\harness-env\index.ts", "bin\pi\pi.exe"
     "config\redis.local.conf", "third_party\redis\REDIS-COPYING", "third_party\redis\NOTICE.md",
     "third_party\redis\LUA-COPYRIGHT", "third_party\redis\FPCONV-LICENSE.txt", "third_party\redis\REDIS-SERVER-NOTICES.txt",
     "third_party\redis\REDIS-WINDOWS-LICENSE", "third_party\redis\DOTNET-LICENSE.txt", "third_party\redis\DOTNET-THIRD-PARTY-NOTICES.txt",
-    "bin\csharp-ls\CSharpLanguageServer.dll", "runtime\dotnet\dotnet.exe", "config\lsp.json",
-    "extensions\cpp-csharp-lsp-lite\index.ts", "extensions\cpp-csharp-lsp-lite\lsp-client.ts", "extensions\cpp-csharp-lsp-lite\diagnostics-delta.ts", "extensions\cpp-csharp-lsp-lite\find-symbol.ts", "config\pi-lens.json", "config\settings.json", "config\extensions\subagent\config.json", "config\AGENTS.md",
-    "vendor\extensions\node_modules\pi-lens\dist\index.js",
+    "config\settings.json", "config\extensions\subagent\config.json", "config\AGENTS.md",
     "vendor\extensions\node_modules\pi-subagents\index.js",
     "vendor\extensions\node_modules\@juicesharp\rpiv-ask-user-question\index.ts", "vendor\extensions\node_modules\@juicesharp\rpiv-config\index.ts",
     "vendor\extensions\node_modules\@juicesharp\rpiv-todo\index.ts",
     "vendor\extensions\node_modules\@narumitw\pi-plan-mode\dist\index.ts", "config\pi-plan-mode.json",
     "config\project-AGENTS.template.md",
-    "extensions\verify-guard\index.ts",
     "vendor\extensions\node_modules\pi-allowlist-plugin\extensions\allowlist-gate\index.ts", "config\extensions\allowlist-gate.json",
     "vendor\extensions\node_modules\pi-tool-repair\tool-repair.ts", "extensions\harness-env\tool-args.ts", "config\extensions\pi-tool-repair.json")
 foreach ($item in $required) {
@@ -132,8 +129,9 @@ function Find-VisualStudioMSBuild {
 }
 
 # Some PCs reset user environment variables at sign-in, so everything pi needs before extensions load is machine-wide.
-# The server SDK (runtime\dotnet) stays off PATH so project builds keep the developer's own SDK.
-$pathDirs = { param($root) @('bin', 'bin\pi', 'bin\svn\bin', 'bin\redis', 'runtime\python', 'vendor\extensions\node_modules\@ast-grep\cli') | ForEach-Object { Join-Path $root $_ } }
+$pathDirs = { param($root) @('bin', 'bin\pi', 'bin\svn\bin', 'bin\redis', 'runtime\python') | ForEach-Object { Join-Path $root $_ } }
+# Folders earlier releases put on PATH; removed so updated bundles do not keep stale entries.
+$legacyPathDirs = { param($root) @('vendor\extensions\node_modules\@ast-grep\cli') | ForEach-Object { Join-Path $root $_ } }
 # pi reads every setting from PI_CODING_AGENT_DIR: settings.json, models.json, AGENTS.md, extensions\subagent\config.json.
 $configDir = Join-Path $BundleRoot 'config'
 $machineVars = @{ PI_CODING_AGENT_DIR = $configDir; HSC_PI_HARNESS_HOME = $BundleRoot; PI_OFFLINE = '1'; PI_TELEMETRY = '0'; PI_SKIP_VERSION_CHECK = '1' }
@@ -159,6 +157,8 @@ function Test-SystemReady {
         if ($machinePath.Count -le $i -or $machinePath[$i] -ne $expected[$i]) { return $false }
         if (@($machinePath | Where-Object { $_ -eq $expected[$i] }).Count -ne 1) { return $false }
     }
+    $legacy = @(& $legacyPathDirs $BundleRoot)
+    if (@($machinePath | Where-Object { $legacy -contains $_ }).Count) { return $false }
     $wrongVars = @($machineVars.Keys | Where-Object { [Environment]::GetEnvironmentVariable($_, 'Machine') -ne $machineVars[$_] })
     return ($wrongVars.Count -eq 0)
 }
@@ -181,7 +181,7 @@ if (-not (Test-SystemReady)) {
     if ($principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
         $envKey = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey($envKeyPath, $true)
         try {
-            $remove = $systemPathDirs + @(if ($previousHome) { & $pathDirs $previousHome })
+            $remove = $systemPathDirs + @(& $legacyPathDirs $BundleRoot) + @(if ($previousHome) { (& $pathDirs $previousHome) + (& $legacyPathDirs $previousHome) })
             $kept = @(([string]$envKey.GetValue('Path', '', 'DoNotExpandEnvironmentNames')).Split(';') |
                 Where-Object { $_ -and $remove -notcontains $_.TrimEnd('\') })
             # Bundled fd/rg/SVN/Redis must take precedence over older copies already on PATH.

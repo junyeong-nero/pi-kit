@@ -20,6 +20,22 @@
         "browser_file_upload": "hidden"
       },
       "timeout": 60
+    },
+    "windows": {
+      "command": "python",
+      "args": ["-I", "-X", "utf8", "-B", "-m", "windows_mcp", "serve"],
+      "env": { "ANONYMIZED_TELEMETRY": "false" },
+      "description": "Windows 데스크톱 화면 조작: 앱 실행·창 전환, 화면 UI 구조(Snapshot) 읽기, 클릭·입력·단축키·스크롤. 실제 마우스·키보드를 움직이므로 사용자 승인 후 실행. 파일·명령은 pi의 read·edit·powershell을 씁니다",
+      "exposure": "deferred",
+      "toolExposure": {
+        "PowerShell": "hidden",
+        "FileSystem": "hidden",
+        "Registry": "hidden",
+        "Process": "hidden",
+        "Scrape": "hidden",
+        "Screenshot": "hidden"
+      },
+      "timeout": 60
     }
   }
 }
