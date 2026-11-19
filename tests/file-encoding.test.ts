@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import iconv from "iconv-lite";
 import { chooseNewFileEncoding, decodeCp949, detectEncoding, encodeCp949, scanEncodings } from "../extensions/harness-env/encoding.ts";
+import { createMixedGrep } from "../extensions/harness-env/grep.ts";
 import { createEncodingAwareTools } from "../extensions/harness-env/file-tools.ts";
 
 const cp949 = (text: string) => iconv.encode(text, "cp949");
@@ -23,6 +24,21 @@ function project(t: { after: (fn: () => void) => void }) {
 		write: async (path: string, content: string) => text(await tools.write.execute("t", { path, content }, undefined, undefined, ctx)),
 	};
 }
+
+test("grep searches mixed encodings without duplicate ASCII hits or mojibake in context", async (t) => {
+	const { root } = project(t);
+	const source = "주변 줄\r\nToken: 한글 똠\r\n마지막\r\n";
+	const legacy = cp949(source);
+	writeFileSync(join(root, "legacy.cpp"), legacy);
+	writeFileSync(join(root, "modern.cpp"), source);
+	writeFileSync(join(root, "skip.txt"), source);
+	const grep = createMixedGrep(root, "rg");
+	for (const pattern of ["한글 똠", "token"]) {
+		const result = await grep.execute("t", { pattern, context: 1, glob: "*.cpp", literal: true, ignoreCase: true }, undefined, undefined, { cwd: root } as any);
+		assert.deepEqual(result.content[0], { type: "text", text: ["modern", "legacy"].flatMap(name => [`${name}.cpp-1- 주변 줄`, `${name}.cpp:2: Token: 한글 똠`, `${name}.cpp-3- 마지막`]).join("\n") });
+	}
+	assert.deepEqual(readFileSync(join(root, "legacy.cpp")), legacy);
+});
 
 test("CP949 table decoding and encoding match iconv-lite for every one- and two-byte code", () => {
 	let mapped = 0;
@@ -87,12 +103,12 @@ test("characters CP949 cannot store are rejected and the file stays unchanged", 
 	assert.deepEqual(readFileSync(file), original);
 });
 
-test("undecidable files are read as-is but never rewritten", async (t) => {
+test("undecidable text is neither displayed nor rewritten", async (t) => {
 	const p = project(t);
 	const file = join(p.root, "legacy.txt");
 	const original = Buffer.from([0x61, 0x80, 0x62, 0x0a]);
 	writeFileSync(file, original);
-	await p.read(file);
+	await assert.rejects(p.read(file), /인코딩을 판별할 수 없어 본문을 표시하지 않았습니다/);
 	await assert.rejects(p.edit(file, "a", "b"), /인코딩을 판별할 수 없어/);
 	await assert.rejects(p.write(file, "b\n"), /인코딩을 판별할 수 없어/);
 	assert.deepEqual(readFileSync(file), original);

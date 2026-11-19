@@ -112,6 +112,7 @@ def run(bundle, mode="installed"):
         shutil.copy2(bundle / "tests/fixtures/cpp/main.cpp", file)
         legacy = project / "legacy.cpp"
         legacy.write_bytes("// 한글 주석\r\nint legacy = 1;\r\n".encode("cp949"))
+        (project / 'legacy_output.py').write_text("import sys\nsys.stdout.buffer.write('빌드 로그'.encode('cp949'))\n", encoding='utf-8')
         stages = [
             ("harness_tools", {"group": "subagents"}, "subagent"),
             ("subagents_enable", {}, "subagent"),
@@ -128,7 +129,9 @@ def run(bundle, mode="installed"):
                 ("powershell", {"command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\hangul.ps1"}, "한글 스크립트 OK"),
                 ("write", {"path": str(project / "hangul.py"), "content": "print('파이썬 한글 OK')\n"}, "Successfully"),
                 ("powershell", {"command": "python hangul.py"}, "파이썬 한글 OK"),
+                ("powershell", {"command": r'python "$env:HARNESS_BUNDLE_ROOT\extensions\harness-env\native-output.py" python legacy_output.py'}, "빌드 로그"),
                 # read must show the CP949 Korean decoded, and edit must keep CP949 on disk.
+                ("grep", {"pattern": "한글", "glob": "*.cpp"}, "legacy.cpp:1: // 한글 주석"),
                 ("read", {"path": str(project / "legacy.cpp")}, "한글 주석"),
                 ("edit", {"path": str(project / "legacy.cpp"), "edits": [{"oldText": "int legacy = 1;", "newText": "int legacy = 2; // 수정"}]}, "CP949"),
                 ("powershell", {"command": "fd --version"}, "fd 10.5.0"),

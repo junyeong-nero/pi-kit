@@ -51,6 +51,6 @@
 - **Python으로 소스를 고치지 않는다.** `powershell` 도구에서는 `PYTHONUTF8=1`이라 `open()`이 CP949 파일을 UTF-8로 다시 쓴다. 여러 파일을 고쳐야 하면 파일마다 edit를 쓴다. 불가피하면 바이트로 읽어 원래 인코딩을 확인하고 같은 `encoding`·`newline=''`로 저장한다.
 - **MFC(C/C++):** MSVC는 BOM 없는 UTF-8을 CP949로 읽는다. `.rc`·`.rc2`는 UTF-16 LE 또는 CP949를 유지하고 `#pragma code_page`를 바꾸지 않는다. 빌드에 C4819(현재 코드 페이지에 없는 문자) 경고가 새로 나오면 인코딩이 바뀐 것이다.
 - **WPF(C#·XAML):** `.cs`·`.xaml`은 보통 UTF-8 BOM이다. `.xaml`·`.resx`·`.csproj`의 XML 선언(`encoding="..."`)과 실제 인코딩을 다르게 만들지 않는다.
-- 하나의 파일 안에서 한글이 깨져 보이면(`�`, `ì•ˆ`) 고치지 말고 멈추고 사용자에게 알린다. 읽기 단계의 판별 문제일 수 있다. `/encodings`로 프로젝트 분포를 확인할 수 있다.
+- 하나의 파일 안에서 한글이 깨져 보이면(`�`, `ì•ˆ`) 고치지 말고 멈추고 사용자에게 알린다. 읽기 단계의 판별 문제일 수 있다. `/encodings`로 프로젝트 분포를 확인할 수 있다. 외부 EXE 로그만 깨지면 전역 코드 페이지를 바꾸지 말고 `docs/tool-guide.md`의 `native-output.py` 진단 절차를 따른다.
 
 상세 호출 예시·SVN·Redis 서버 운영은 배포 폴더 docs/tool-guide.md, Redis 설정은 mcp/build-center/README.md를 필요할 때 읽는다. 배포 폴더 경로는 HSC_PI_HARNESS_HOME 또는 harness_tools 응답의 guide_path로 확인한다.

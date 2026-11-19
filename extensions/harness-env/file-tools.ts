@@ -19,10 +19,13 @@ async function readIfExists(path: string): Promise<Buffer | undefined> {
 	}
 }
 
-/** UTF-8이 아닌 텍스트 파일을 UTF-8로 바꿔 돌려준다. 바이너리·판별 불가 파일은 원본 그대로 둔다. */
+/** 지원하는 텍스트만 변환한다. 이미지 바이트는 pi의 이미지 처리기로 그대로 넘긴다. */
 export async function readAsUtf8(path: string): Promise<Buffer> {
 	const bytes = await readFile(path);
 	const detected = detectEncoding(bytes);
+	if (detected === "unknown" && !await detectSupportedImageMimeTypeFromFile(path)) {
+		throw new EncodingError(`${path}: 인코딩을 판별할 수 없어 본문을 표시하지 않았습니다. 원래 인코딩을 확인하세요. 파일은 변경되지 않았습니다.`);
+	}
 	if (detected === "utf16le" || detected === "utf16be" || detected === "cp949") return Buffer.from(decodeText(bytes, detected), "utf-8");
 	return bytes;
 }

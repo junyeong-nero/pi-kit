@@ -35,9 +35,9 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           powershell -NoProfile -ExecutionPolicy Bypass -File tests/environment.ps1
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          npm test
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           npm run typecheck
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python -B -m unittest discover -s tests -p 'native_output_test.py'
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python -B -m unittest discover -s tests -p 'bundle_identity_test.py'
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
@@ -372,6 +372,10 @@ jobs:
       - name: Load extensions and relocate ZIP
         shell: pwsh
         run: |
+          # Mixed-encoding grep tests use the same locked rg.exe as the release.
+          $env:Path = "$PWD\bin;$env:Path"
+          npm test
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           node tests/extensions-loader.mjs
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           Expand-Archive dist/pi-kit-win-x64.zip -DestinationPath "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER"

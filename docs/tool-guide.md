@@ -77,6 +77,15 @@ rg -l -F 'CreateSession' src
 
 ## Python
 
+외부 EXE의 한글 로그만 깨지면 전역 `chcp`를 바꾸지 않는다. 아래처럼 **원래 호출 대신 한 번만** 실행하면 PowerShell의 문자열 변환 전에 stdout·stderr를 따로 임시 파일에 받아, 종료 후 각 스트림의 바이트 수·유효한 인코딩·선택한 인코딩과 본문을 보여 준다. 실제 명령을 실행하므로 빌드·배포 등을 진단 목적으로 자동 재시도하지 않는다.
+
+```powershell
+python "$env:HARNESS_BUNDLE_ROOT\extensions\harness-env\native-output.py" MSBuild.exe '.\My Project.sln' /nologo
+exit $LASTEXITCODE
+```
+
+`valid=cp949`면 해당 스트림은 UTF-8이 아니며 CP949로 표시한다. 둘 다 유효하면 UTF-8을 우선하며, 원본이 이미 잘못된 문자라면 복구할 수 없다. NUL이 있거나 두 인코딩 모두 유효하지 않으면 본문을 생략한다. 이 방식은 비대화형 EXE 진단용이며, 두 스트림 사이의 시간순서와 실시간 진행 표시는 보존하지 않는다. 원래 명령의 종료 코드는 유지한다.
+
 별도 `python` 도구는 없다. 동봉 Python(`runtime\python`)이 시스템 PATH에 있으므로 `powershell` 도구에서 실행한다. 검색·집계·변환처럼 한글이 섞일 수 있는 처리는 PowerShell cmdlet보다 Python을 쓴다. 폐쇄망이므로 `pip install`·다운로드는 시도하지 않고, 동봉 패키지(redis-py 등)만 쓴다.
 
 여러 줄 코드는 `write`로 `.py` 파일을 만든 뒤 실행한다. PowerShell 5.1은 외부 프로그램 인자 안의 큰따옴표를 제대로 넘기지 못하므로 `python -c`에는 짧은 한 줄만 쓴다. `powershell` 도구가 `PYTHONUTF8=1`을 설정하므로 한글 출력은 그대로 읽힌다.
@@ -90,11 +99,11 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 ## 파일 인코딩
 
-`read`·`edit`·`write`는 UTF-8, UTF-8 BOM, UTF-16(BOM), CP949 파일을 판별해 모델에는 UTF-8 텍스트로 보여 주고, 저장할 때 원래 인코딩·BOM·줄바꿈을 유지한다. 결과 끝의 `[원래 인코딩 CP949 유지]` 같은 표시로 확인한다. CP949에 없는 문자(이모지 등)는 저장하지 않고 오류를 낸다. 판별할 수 없는 파일은 고치지 않는다.
+`read`·`edit`·`write`는 UTF-8, UTF-8 BOM, UTF-16(BOM), CP949 파일을 판별해 모델에는 UTF-8 텍스트로 보여 주고, 저장할 때 원래 인코딩·BOM·줄바꿈을 유지한다. 결과 끝의 `[원래 인코딩 CP949 유지]` 같은 표시로 확인한다. CP949에 없는 문자(이모지 등)는 저장하지 않고 오류를 낸다. 판별할 수 없는 텍스트는 `read`가 본문 대신 오류를 알리고, `edit`·`write`도 수정하지 않는다.
 
 새 파일은 `.editorconfig`의 `charset` → 같은 확장자의 주변 파일(가까운 폴더부터 작업 폴더까지, 한글이 든 파일만 근거) → 기본값(C/C++/C#/PowerShell은 UTF-8 BOM, 그 밖은 UTF-8) 순서로 인코딩을 정한다. 한글이 든 `.ps1`은 Windows PowerShell 5.1이 읽도록 항상 BOM을 붙인다. 영문만 있던 BOM 없는 파일에 한글이 처음 들어갈 때도 같은 순서를 따른다(MFC 프로젝트에서 BOM 없는 UTF-8이 생겨 MSVC가 CP949로 잘못 읽는 것을 막음).
 
-PowerShell의 `Set-Content`·`Add-Content`·`Out-File`·`>`·`[IO.File]::WriteAllText`는 인코딩을 바꾸므로 소스·스크립트 수정에 쓰지 않는다. `powershell` 도구의 Python은 `PYTHONUTF8=1`이라 `open()`이 UTF-8로 저장하므로 소스 수정에 쓰지 않는다. `grep`은 한글 검색어로 CP949 파일을 찾지 못하므로 `rg -E euc-kr '한글' 경로`를 쓴다. 사용자는 `/encodings`로 프로젝트의 확장자별 인코딩 분포를 볼 수 있다.
+PowerShell의 `Set-Content`·`Add-Content`·`Out-File`·`>`·`[IO.File]::WriteAllText`는 인코딩을 바꾸므로 소스·스크립트 수정에 쓰지 않는다. `powershell` 도구의 Python은 `PYTHONUTF8=1`이라 `open()`이 UTF-8로 저장하므로 소스 수정에 쓰지 않는다. `grep`은 같은 폴더에 UTF-8과 CP949 파일이 섞여 있어도 한글로 검색하고 일치 줄과 주변 줄을 표시한다. `read`와 마찬가지로 두 인코딩 모두 유효하면 UTF-8을 우선한다. 사용자는 `/encodings`로 프로젝트의 확장자별 인코딩 분포를 볼 수 있다.
 
 ## 검증 기준
 

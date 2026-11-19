@@ -71,7 +71,7 @@ $required = @("package.json", "extensions\harness-env\index.ts", "bin\pi\pi.exe"
     "vendor\extensions\node_modules\@tian.zuo\pi-usage\index.ts",
     "config\redis\settings.json", "config\redis\server_IP_mappings.example.json", "config\redis\owners.example.json", "config\redis\requirements.lock",
     "third_party\python\PYTHON-LICENSE.txt", "third_party\python\PACKAGES.json", "third_party\python\NOTICE.md",
-    "extensions\harness-env\powershell.ts", "extensions\harness-env\encoding.ts", "extensions\harness-env\file-tools.ts", "extensions\harness-env\search-excludes.ts", "config\ripgrep.conf", "vendor\extensions\node_modules\iconv-lite\encodings\tables\cp949.json",
+    "extensions\harness-env\powershell.ts", "extensions\harness-env\native-output.py", "extensions\harness-env\encoding.ts", "extensions\harness-env\file-tools.ts", "extensions\harness-env\search-excludes.ts", "extensions\harness-env\grep.ts", "config\ripgrep.conf", "vendor\extensions\node_modules\iconv-lite\encodings\tables\cp949.json",
     "bin\svn\bin\svn.exe", "bin\svn\bin\svnadmin.exe", "bin\svn\bin\libsvn_client-1.dll", "bin\svn\bin\vcruntime140.dll", "bin\svn\Licenses\Apache Subversion License.txt",
     "bin\redis\redis-cli.exe", "bin\redis\redis-server.exe", "bin\redis\msys-2.0.dll", "bin\redis\msys-crypto-3.dll", "bin\redis\msys-ssl-3.dll",
     "bin\redis\redis-benchmark.exe", "bin\redis\redis-check-aof.exe", "bin\redis\redis-check-rdb.exe", "bin\redis\redis-sentinel.exe", "bin\redis\RedisService.exe",

@@ -5,6 +5,7 @@ import { delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createPowerShellToolDefinition, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { formatScan, scanEncodings } from "./encoding.ts";
+import { createMixedGrep } from "./grep.ts";
 import { createEncodingAwareTools } from "./file-tools.ts";
 import { createWindowsPowerShellOperations } from "./powershell.ts";
 import { excludeNoisyDirs } from "./search-excludes.ts";
@@ -71,6 +72,7 @@ export default function (pi: ExtensionAPI) {
 	pi.registerTool(fileTools.read);
 	pi.registerTool(fileTools.edit);
 	pi.registerTool(fileTools.write);
+	pi.registerTool(createMixedGrep(process.cwd(), process.platform === "win32" ? join(bundle, "bin", "rg.exe") : "rg"));
 	pi.registerCommand("encodings", {
 		description: "현재 프로젝트의 확장자별 파일 인코딩 분포를 보여 줍니다",
 		handler: async (_args, ctx) => {
