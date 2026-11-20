@@ -29,9 +29,22 @@ try {
   assert.equal(new Set(commands).size, commands.length, 'No duplicate command registrations');
   const hooksOf = name => [...(loaded.extensions.find(extension => extension.path.replaceAll('\\', '/').endsWith(`extensions/${name}/index.ts`))?.handlers.keys() ?? [])];
   assert.ok(hooksOf('harness-env').includes('before_agent_start'), 'harness-env hooks before_agent_start');
-  const footer = loaded.extensions.find(extension => extension.path.replaceAll('\\', '/').endsWith('/pi-context-footer/extensions/footer.ts'));
-  assert.ok(footer?.handlers.has('session_start') && footer.commands.has('builtin-footer'), 'pi-context-footer installs the footer on session start');
+  assert.ok(hooksOf('context-bar').includes('session_start'), 'context-bar installs the footer on session start');
+  assert.ok(!manifest.extensions.some(path => path.includes('pi-context-footer')), 'context-bar replaces pi-context-footer; two footers would override each other');
   assert.ok(!manifest.extensions.some(path => path.includes('pi-usage-bar')), 'pi-usage-bar is excluded from the bundle');
+  const polish = loaded.extensions.find(extension => extension.path.replaceAll('\\', '/').endsWith('/pi-polish/extensions/tools.ts'));
+  assert.ok(polish?.handlers.has('tool_execution_start'), 'pi-polish folds tool rows');
+  assert.ok(!manifest.extensions.some(path => path.includes('pi-polish/extensions/chrome.ts')), 'pi-polish chrome.ts (patches pi internals) is excluded');
+  assert.match(readFileSync('vendor/extensions/node_modules/pi-polish/extensions/tools.ts', 'utf8'), /powershell: "bash"/, 'pi-polish groups powershell like bash');
+  // pi-polish draws only the diff for edit/write; the patched row must still show harness-env's encoding note to the user.
+  const plainTheme = new Proxy({}, { get: (_t, key) => key === 'fg' || key === 'bg' ? (_c, s) => s : key === 'bold' || key === 'italic' ? s => s : () => '' });
+  const statsLine = (toolName, text, args, details) => polish.toolRenderers[0](toolName, () => undefined)
+    .renderResult({ content: [{ type: 'text', text }], details }, { expanded: false, isPartial: false }, plainTheme, { args, isError: false, toolCallId: 'test' })
+    .render(200)[0].trimEnd();
+  const diff = '-1 int a = 1;\n+1 int a = 2;';
+  assert.equal(statsLine('edit', 'Successfully replaced 1 block(s) in main.cpp. [원래 인코딩 CP949 유지]', { path: 'main.cpp' }, { diff }), '  └ Added 1 line, removed 1 line · 원래 인코딩 CP949 유지');
+  assert.equal(statsLine('write', 'Successfully wrote to new.cpp [UTF-8 BOM로 저장 (기본값)]', { path: 'new.cpp', content: 'int x;\n' }), '  └ Wrote 1 line · UTF-8 BOM로 저장 (기본값)');
+  assert.equal(statsLine('edit', 'Successfully replaced 1 block(s) in a [b].cpp.', { path: 'a [b].cpp' }, { diff }), '  └ Added 1 line, removed 1 line', 'UTF-8 edits and bracketed paths add no note');
   assert.ok(hooksOf('allowlist-gate').includes('tool_call'), 'allowlist-gate hooks tool_call');
   // The bundled allowlist lets read-only commands and tools run and asks (blocks without a screen) for everything else.
   const [gate] = loaded.extensions.find(extension => extension.path.replaceAll('\\', '/').endsWith('extensions/allowlist-gate/index.ts')).handlers.get('tool_call');

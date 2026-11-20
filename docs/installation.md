@@ -172,7 +172,7 @@ pi는 `PI_CODING_AGENT_DIR`이 가리키는 `<배포 폴더>\config` 한 곳만 
 | 파일 | 내용 | 고칠 일 |
 |---|---|---|
 | `models.json` | 사내 API 주소·모델 (`models.example.json`을 복사해 만듦) | 처음 한 번, API가 바뀔 때 |
-| `settings.json` | 기본 도구, 배포본 패키지 등록(`".."`), 터미널 스크롤백을 쓰는 regular 화면 모드(`"tuiMode"`), compaction 여유(`compaction.reserveTokens`), footer의 컨텍스트 경고 기준(`contextFooter.warnTokens`) 등 pi 설정 | 필요할 때 |
+| `settings.json` | 기본 도구, 배포본 패키지 등록(`".."`), 터미널 스크롤백을 쓰는 regular 화면 모드(`"tuiMode"`), compaction 여유(`compaction.reserveTokens`) 등 pi 설정 | 필요할 때 |
 | `AGENTS.md` | 모든 프로젝트에 들어가는 도구 사용 가이드 | 공통 규칙을 더할 때 |
 | `extensions\subagent\config.json` | pi-subagents 설정 | 거의 없음 |
 | `pi-plan-mode.json` | 계획 모드에서 허용할 도구(`defaultPlanTools`)와 svn·git 조회 명령(`safeSubcommands`). `/plan settings`로도 바꿈 | 거의 없음 |

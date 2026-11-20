@@ -2,6 +2,5 @@
   "defaultTools": ["read", "powershell", "edit", "write", "grep", "find", "ls"],
   "packages": [".."],
   "tuiMode": "regular",
-  "compaction": { "reserveTokens": 32768 },
-  "contextFooter": { "warnTokens": 64000 }
+  "compaction": { "reserveTokens": 32768 }
 }

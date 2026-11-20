@@ -60,7 +60,7 @@ if (-not $Check -and -not $SystemOnly -and (Test-Path -LiteralPath $updateInfo -
     }
 }
 $required = @("package.json", "extensions\harness-env\index.ts", "bin\pi\pi.exe", "bin\fd.exe", "bin\rg.exe",
-    "extensions\tool-profile\index.ts", "vendor\extensions\node_modules\pi-context-footer\extensions\footer.ts", "extensions\read-budget\index.ts", "docs\tool-guide.md",
+    "extensions\tool-profile\index.ts", "extensions\context-bar\index.ts", "extensions\read-budget\index.ts", "docs\tool-guide.md",
     "runtime\python\python.exe", "runtime\python\python313.dll", "runtime\python\python313.zip", "runtime\python\python313._pth",
     "runtime\python\Lib\site-packages\redis\__init__.py", "runtime\python\Lib\site-packages\mcp\__init__.py", "runtime\python\Lib\site-packages\windows_mcp\__main__.py",
     "runtime\python\Lib\site-packages\tzdata\__init__.py",

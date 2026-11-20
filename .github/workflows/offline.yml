@@ -166,11 +166,14 @@ jobs:
 
           def extract_npm(archive, destination):
               """Extract npm files without executing lifecycle scripts or following links."""
+              # Like npm, strip the single top folder: usually package/, but @types/* use their own name.
+              root = None
               with tarfile.open(archive, "r:gz") as source:
                   for entry in source:
                       path = PurePosixPath(entry.name)
+                      root = root or (path.parts[0] if path.parts else None)
                       if (path.is_absolute() or ".." in path.parts or "\\" in entry.name
-                              or ":" in entry.name or not path.parts or path.parts[0] != "package"):
+                              or ":" in entry.name or not path.parts or path.parts[0] != root):
                           raise ValueError(f"Unsafe npm member: {entry.name}")
                       if entry.isdir():
                           continue
@@ -221,6 +224,23 @@ jobs:
                       text = agent.read_text(encoding="utf-8")
                       text = text.replace(", bash", ", powershell").replace("`bash`", "`powershell`")
                       agent.write_text(text, encoding="utf-8")
+                  # pi-polish folds only bash into shell-command rows; give powershell, the bundle's shell, the same rows.
+                  # Its edit/write rows draw only the diff, so also show harness-env's encoding note (" [원래 인코딩 CP949 유지]").
+                  polish = stage / "node_modules/pi-polish/extensions/tools.ts"
+                  text = polish.read_text(encoding="utf-8")
+                  for old, new, count in (
+                      ('codemode: "code" };', 'codemode: "code", powershell: "bash" };', 1),
+                      ('\t\tcase "bash":\n', '\t\tcase "bash":\n\t\tcase "powershell":\n', 1),
+                      ('= toolName === "bash"', '= (toolName === "bash" || toolName === "powershell")', 2),
+                      ('m.toolName === "bash"', '(m.toolName === "bash" || m.toolName === "powershell")', 2),
+                      ('\t\t\tbox.addChild(new Text(theme.fg("dim", `  └ ${stats}`), 0, 0));\n',
+                       '\t\t\tconst encoding = resultText(result as Result).match(/ \\[((?:원래 인코딩|영문만 있던 파일|UTF-|CP949)[^\\n]*)\\]$/)?.[1];\n'
+                       '\t\t\tbox.addChild(new Text(theme.fg("dim", `  └ ${stats}`) + (encoding ? theme.fg("accent", ` · ${encoding}`) : ""), 0, 0));\n', 1),
+                  ):
+                      if text.count(old) != count:
+                          raise ValueError(f"pi-polish patch no longer applies: {old!r}")
+                      text = text.replace(old, new)
+                  polish.write_text(text, encoding="utf-8")
                   (stage / "manifest.json").write_text(json.dumps({"platform": platform, "cpu": cpu, "packages": selected}, indent=2) + "\n")
                   if destination.exists():
                       shutil.rmtree(destination)

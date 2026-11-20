@@ -14,7 +14,8 @@
       "./vendor/extensions/node_modules/@narumitw/pi-plan-mode/dist/index.ts",
       "./extensions/auto-mode/index.ts",
       "./vendor/extensions/node_modules/pi-allowlist-plugin/extensions/allowlist-gate/index.ts",
-      "./vendor/extensions/node_modules/pi-context-footer/extensions/footer.ts",
+      "./extensions/context-bar/index.ts",
+      "./vendor/extensions/node_modules/pi-polish/extensions/tools.ts",
       "./extensions/tool-profile/index.ts"
     ],
     "skills": [],
