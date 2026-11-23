@@ -20,3 +20,9 @@
 - 배포 경로를 바꾸면 Windows에서 ZIP을 다른 경로에 풀어 설정·확장 로딩·MCP 서버 동작을 검증한다. CI 미실행 상태를 성공으로 보고하지 않는다.
 - pi 설정은 `config/` 한 곳에 둔다. `setup.ps1`이 시스템 변수 `PI_CODING_AGENT_DIR`을 `<배포 폴더>\config`로 설정하며, 사용자 프로필(`%USERPROFILE%\.pi\agent`)이나 다른 폴더에 설정을 나누지 않는다.
 - 배포 ZIP에 실제 API 키, `config/models.json`, `config/` 아래 세션·캐시를 포함하지 않는다.
+
+## 릴리스할 때
+
+- 릴리스(`v*` 태그)마다 동봉 pi와 확장을 최신 버전으로 올린다. 대상은 `config/offline-artifacts.lock.json`의 `pi`(URL·SHA-256), `package.json`의 `@earendil-works/pi-coding-agent`, `config/extensions/package.json`의 패키지이며 각 lock 파일도 다시 만든다.
+- 올리기 전에 각 CHANGELOG의 breaking change를 확인하고, 영향이 있으면 맞춰 고치거나 그 패키지만 올리지 않은 이유를 보고한다. 빌드 시 패치하는 확장(예: pi-polish)은 패치가 적용되는지 확인한다.
+- 올린 버전은 커밋 메시지와 보고에 `이전 → 새 버전`으로 적고, `main` CI가 통과한 뒤에 태그를 push한다.
