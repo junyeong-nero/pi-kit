@@ -50,6 +50,141 @@ End Function
 # COM objects belong to the thread that made them: every Word call runs on one initialized thread, one at a time.
 _executor = ThreadPoolExecutor(max_workers=1, initializer=lambda: __import__("pythoncom").CoInitialize())
 _busy = False
+_late_error = None  # why a run that outlived its timeout failed, told on the next call
+
+OPENERS = {"if": "If", "for": "For", "do": "Do", "while": "While", "with": "With", "select": "Select Case",
+           "sub": "Sub", "function": "Function", "property": "Property", "type": "Type", "enum": "Enum"}
+CLOSERS = {"if": "End If", "for": "Next", "do": "Loop", "while": "Wend", "with": "End With", "select": "End Select",
+           "sub": "End Sub", "function": "End Function", "property": "End Property", "type": "End Type",
+           "enum": "End Enum"}
+PROCEDURE = re.compile(r"^((public|private|friend|static)\s+)*(sub|function|property\s+(get|let|set))\s+\w+")
+PROCEDURE_KIND = re.compile(r"(sub|function|property)\b")
+
+
+def _strip_comment(line):
+    """Code part of one physical line, and whether a string is left open."""
+    in_string = False
+    for i, char in enumerate(line):
+        if char == '"':
+            in_string = not in_string
+        elif char == "'" and not in_string:
+            return line[:i], False
+    code = line.strip()
+    if code.lower() == "rem" or code.lower().startswith("rem "):
+        return "", False
+    return line, in_string
+
+
+def _statements(text):
+    """Split a logical line at ':' outside strings; ':=' is a named argument, not a separator."""
+    parts, start, in_string = [], 0, False
+    for i, char in enumerate(text):
+        if char == '"':
+            in_string = not in_string
+        elif char == ":" and not in_string and text[i + 1:i + 2] != "=":
+            parts.append(text[start:i])
+            start = i + 1
+    parts.append(text[start:])
+    return [p.strip().lower() for p in parts if p.strip()]
+
+
+def check_syntax(code):
+    """Catch the usual compile errors (unclosed blocks, stray closers, open strings) before Word sees the code.
+
+    Conservative on purpose: valid VBA must never be rejected, so only block keywords that start a statement count.
+    """
+    issues, stack = [], []
+    physical = code.replace("\r\n", "\n").split("\n")
+    logical, pending, first = [], "", None
+    for number, line in enumerate(physical, 1):
+        part, open_string = _strip_comment(line)
+        if open_string:
+            issues.append(f"{number}행: 따옴표(\")가 닫히지 않았습니다")
+            part = part[:part.rfind('"')]
+        first = first or number
+        if re.search(r"(^|\s)_\s*$", part):
+            pending += re.sub(r"_\s*$", " ", part)
+            continue
+        logical.append((first, pending + part))
+        pending, first = "", None
+    if pending:
+        logical.append((first, pending))
+
+    def close(kind, number):
+        if not stack:
+            issues.append(f"{number}행: {CLOSERS[kind]}에 맞는 {OPENERS[kind]}이(가) 없습니다")
+            return
+        if stack[-1][0] == kind:
+            stack.pop()
+            return
+        top, line = stack[-1]
+        issues.append(f"{number}행: {CLOSERS[kind]} 전에 {line}행의 {OPENERS[top]}을(를) {CLOSERS[top]}(으)로 닫아야 합니다")
+        if any(k == kind for k, _ in stack):
+            while stack.pop()[0] != kind:
+                pass
+
+    for number, text in logical:
+        statements = _statements(text)
+        for index, s in enumerate(statements):
+            if s.startswith("#"):
+                continue
+            procedure = PROCEDURE.match(s)
+            end = re.match(r"end\s+(if|sub|function|property|with|select|type|enum)\b", s)
+            if procedure and "declare " not in s:
+                kind = PROCEDURE_KIND.match(procedure.group(3)).group(1)
+                for open_kind, line in stack:
+                    issues.append(f"{line}행의 {OPENERS[open_kind]}이(가) 닫히지 않았습니다({CLOSERS[open_kind]} 필요)")
+                stack[:] = [(kind, number)]
+            elif end:
+                close(end.group(1), number)
+            elif re.match(r"if\b", s):
+                # Block If only when Then ends the line: "If x Then: y" is a one-line If
+                if re.search(r"\bthen$", s) and index == len(statements) - 1 and not text.rstrip().endswith(":"):
+                    stack.append(("if", number))
+            elif re.match(r"(elseif|else)\b", s):
+                if not stack or stack[-1][0] != "if":
+                    issues.append(f"{number}행: Else/ElseIf가 여러 줄 If 블록 밖에 있습니다")
+            elif re.match(r"for\b", s):
+                stack.append(("for", number))
+            elif re.match(r"next\b", s):
+                for _ in range(s.count(",") + 1):
+                    close("for", number)
+            elif re.match(r"do\b", s):
+                stack.append(("do", number))
+            elif re.match(r"loop\b", s):
+                close("do", number)
+            elif re.match(r"while\b", s):
+                stack.append(("while", number))
+            elif re.match(r"wend\b", s):
+                close("while", number)
+            elif re.match(r"with\b", s):
+                stack.append(("with", number))
+            elif re.match(r"select\s+case\b", s):
+                stack.append(("select", number))
+            elif re.match(r"((public|private)\s+)?(type|enum)\s+\w+$", s):
+                stack.append((re.search(r"(type|enum)", s).group(1), number))
+    for kind, line in stack:
+        issues.append(f"{line}행의 {OPENERS[kind]}이(가) 닫히지 않았습니다({CLOSERS[kind]} 필요)")
+    return issues[:8]
+
+
+def _head(lines):
+    """Number of leading Option, comment and blank lines."""
+    head = 0
+    while head < len(lines) and (not lines[head].strip() or lines[head].lstrip().startswith("'")
+                                 or lines[head].lstrip().lower().startswith("option ")):
+        head += 1
+    return head
+
+
+def user_line(module_line, code):
+    """Line of the user's code for a line of the built module, or None inside the MCP's own code."""
+    lines = code.replace("\r\n", "\n").rstrip().split("\n")
+    head, inserted = _head(lines), SHIM_DECLARATIONS.count("\n") + 1
+    if module_line <= head:
+        return module_line
+    line = module_line - inserted
+    return line if head < line <= len(lines) else None
 _outputs = OrderedDict()  # Long outputs stay in memory only: DRM document text must not land in files
 
 
@@ -66,11 +201,12 @@ def build_module(code, entry):
     if re.search(r"^\s*(Public\s+|Private\s+)?(Function|Sub)\s+(MsgBox|InputBox|PiTimeLeft)\b", code,
                  re.IGNORECASE | re.MULTILINE):
         raise ValueError("MsgBox·InputBox·PiTimeLeft는 MCP가 제공하므로 직접 정의하지 마세요")
+    issues = check_syntax(code)
+    if issues:
+        raise ValueError("VBA 구문 오류(실행 전 검사, Word에는 넣지 않음). 행 번호는 code 기준:\n- "
+                         + "\n- ".join(issues))
     lines = code.replace("\r\n", "\n").rstrip().split("\n")
-    head = 0
-    while head < len(lines) and (not lines[head].strip() or lines[head].lstrip().startswith("'")
-                                 or lines[head].lstrip().lower().startswith("option ")):
-        head += 1
+    head = _head(lines)
     return ("\n".join(lines[:head] + [SHIM_DECLARATIONS] + lines[head:] + ["", SHIMS]) + "\n"
             f"Public Function {entry}(targetName As String, undoName As String, seconds As Long) As String\n"
             "    Dim result As String\n"
@@ -178,7 +314,17 @@ def _run_vba(code, document, undo_name, seconds, max_chars):
         module.CodeModule.AddFromString(module_code)
         scratch.Activate()
         app.DisplayAlerts = WD_ALERTS_NONE
-        result = app.Run(f"{module.Name}.{entry}", target.FullName, undo_name, max(1, seconds - DEADLINE_MARGIN))
+        try:
+            result = app.Run(f"{module.Name}.{entry}", target.FullName, undo_name, max(1, seconds - DEADLINE_MARGIN))
+        except pywintypes.com_error as error:
+            # Runtime errors come back as text from the entry, so a failing Run means the module did not compile
+            line = _compile_error_line(app, module.Name)
+            where = user_line(line, code) if line else None
+            raise ValueError("VBA를 컴파일하지 못해 실행하지 않았습니다(구문·컴파일 오류). "
+                             f"Word 메시지: {com_detail(error)}. "
+                             + (f"오류 위치: code {where}행. " if where else "")
+                             + "확인할 것: 선언하지 않은 변수(Option Explicit), 괄호·따옴표, 함수 호출 괄호 사용, "
+                             "Word에 없는 속성·메서드 이름, As String을 돌려주는 PiMain") from None
     finally:
         app.DisplayAlerts = alerts
         scratch.Close(0)  # wdDoNotSaveChanges
@@ -190,30 +336,66 @@ def _run_vba(code, document, undo_name, seconds, max_chars):
     return {"document": target.Name, **parse_result(result, max_chars)}
 
 
-async def _call(function, *args, timeout=None):
-    global _busy
+def _compile_error_line(app, module_name):
+    """Word selects the offending line in the VBA editor after a compile error; read it when it can be read."""
+    try:
+        pane = app.VBE.ActiveCodePane
+        if pane is None or pane.CodeModule.Parent.Name != module_name:
+            return None
+        selection = pane.GetSelection(0, 0, 0, 0)
+        return int(selection[0]) if selection and selection[0] else None
+    except Exception:  # VBE access varies by Word version; the line is a bonus
+        return None
+
+
+def com_detail(error):
+    """Word's own message when there is one, else the COM message, with the HRESULT for anything unexplained."""
+    excepinfo = getattr(error, "excepinfo", None)
+    if excepinfo and excepinfo[2]:
+        return str(excepinfo[2]).strip()
+    message = str(getattr(error, "strerror", "") or error).strip()
+    return f"{message} (HRESULT {getattr(error, 'hresult', '?')})"
+
+
+def describe(error):
     import pywintypes
+    if isinstance(error, ValueError):
+        return str(error)
+    if isinstance(error, pywintypes.com_error):
+        return f"Word COM 오류: {com_detail(error)}"
+    return f"예상하지 못한 오류 {type(error).__name__}: {error}"
+
+
+async def _call(function, *args, timeout=None):
+    global _busy, _late_error
     if _busy:
         raise ToolError("이전 VBA 실행이 아직 끝나지 않았습니다. Word에 오류·확인 창이 떠 있으면 닫은 뒤 다시 시도하세요")
+    previous, _late_error = _late_error, None
     _busy = True
+    timed_out = False
     future = asyncio.get_running_loop().run_in_executor(_executor, function, *args)
 
-    def done(_future):
-        global _busy
+    def done(finished):
+        global _busy, _late_error
         _busy = False
+        if timed_out and not finished.cancelled() and finished.exception() is not None:
+            _late_error = describe(finished.exception())
     future.add_done_callback(done)
     # MCP SDK 2 shows the model the text of a ToolError only
     try:
-        return await asyncio.wait_for(asyncio.shield(future), timeout)
+        result = await asyncio.wait_for(asyncio.shield(future), timeout)
     except asyncio.TimeoutError:
+        timed_out = True
         raise ToolError(f"VBA가 {timeout}초 안에 끝나지 않았습니다. Word에 VBA 컴파일 오류나 확인 창이 떠 있으면 닫으세요. "
                         "창이 없다면 코드가 아직 도는 중이며 끝나야 다음 호출을 받습니다. 다음 코드는 긴 반복에서 "
-                        "PiTimeLeft()를 확인해 중간 결과와 이어서 할 위치를 돌려주게 하세요") from None
-    except ValueError as error:
-        raise ToolError(str(error)) from None
-    except pywintypes.com_error as error:
-        detail = error.excepinfo[2] if error.excepinfo and error.excepinfo[2] else error.strerror
-        raise ToolError(f"Word COM 오류: {detail}") from None
+                        "PiTimeLeft()를 확인해 중간 결과와 이어서 할 위치를 돌려주게 하세요. 이 실행이 실패로 끝나면 "
+                        "그 이유는 다음 호출 결과의 previous_run에 나옵니다") from None
+    except Exception as error:
+        prefix = f"[직전 시간 초과 실행의 결과] {previous}\n" if previous else ""
+        raise ToolError(prefix + describe(error)) from None
+    if previous and isinstance(result, dict):
+        result = {"previous_run": previous, **result}
+    return result
 
 
 def create_server():
@@ -234,8 +416,9 @@ def create_server():
         Return only what the task needs (counts, matching lines, one section), not whole documents.
         Output over max_chars (default 8000) is cut; the rest is kept for read_output.
         Long loops: `If Not PiTimeLeft() Then` stop and return the partial result plus where to resume.
-        MsgBox/InputBox show nothing; their text comes back in messages. Errors come back as
-        'VBA 실행 오류 <number>: <description>'. All changes are one Ctrl+Z entry named undo_name.
+        MsgBox/InputBox show nothing; their text comes back in messages. Unclosed blocks and open strings are
+        reported with line numbers before Word sees the code; a compile error comes back with Word's message;
+        runtime errors come back as 'VBA 실행 오류 <number>: <description>'. All changes are one Ctrl+Z entry named undo_name.
         Word facts: Range.Information(1) = printed page number (what a TOC shows), Information(3) = page counted
         from the first page; Information forces page layout, so call it for headings, not every paragraph.
         TOC entries are Hyperlinks whose SubAddress is a hidden _Toc bookmark (Bookmarks.ShowHidden = True) on the
