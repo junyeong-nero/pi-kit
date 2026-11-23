@@ -24,7 +24,7 @@ test('bundled Python starts the Word VBA MCP and reports a missing Word as a too
   try {
     await client.connect(transport);
     const tools = (await client.listTools()).tools.map(tool => tool.name).sort();
-    assert.deepEqual(tools, ['list_documents', 'run_vba']);
+    assert.deepEqual(tools, ['list_documents', 'read_output', 'run_vba']);
     // Word is not installed on the runner: the model must see why, not only "Error executing tool".
     const code = 'Function PiMain() As String\n  PiMain = ActiveDocument.Name\nEnd Function';
     const result = await client.callTool({ name: 'run_vba', arguments: { code } });
@@ -32,6 +32,8 @@ test('bundled Python starts the Word VBA MCP and reports a missing Word as a too
     assert.match(result.content[0].text, /Word/);
     const missing = await client.callTool({ name: 'run_vba', arguments: { code: 'Sub Main()\nEnd Sub' } });
     assert.ok(missing.isError && /PiMain/.test(missing.content[0].text), JSON.stringify(missing));
+    const gone = await client.callTool({ name: 'read_output', arguments: { output_id: 'none', offset: 0 } });
+    assert.ok(gone.isError && /output_id/.test(gone.content[0].text), JSON.stringify(gone));
   } catch (error) {
     throw new Error(`${error.message}\n${errors}`);
   } finally {
