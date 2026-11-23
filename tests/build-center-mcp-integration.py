@@ -24,9 +24,9 @@ async def main():
 
         async def call(tool, **arguments):
             result = await session.call_tool(tool, arguments)
-            assert not result.isError, result.content
-            assert result.structuredContent
-            return result.structuredContent
+            assert not result.is_error, result.content
+            assert result.structured_content
+            return result.structured_content
 
         listed = await call("list_projects")
         assert listed["projects"] == ["ProjectA"]

@@ -65,12 +65,11 @@ Playwright MCP와 전용 Node 런타임은 ZIP에 동봉하며, 브라우저를 
 
 ## Word 문서 편집
 
-[word-mcp-live](https://github.com/ykarapazar/word-mcp-live) 1.6.20(MIT)을 동봉 Python으로 실행합니다. 문서를 Word로 먼저 열어 두고 “열어 둔 보고서에서 '일정' 표의 2행을 이 내용으로 바꿔 줘”처럼 요청하면 `tool_search`가 `word` 서버의 도구를 찾아 활성화합니다.
+[word-mcp-live](https://github.com/ykarapazar/word-mcp-live) 1.6.22(MIT)을 동봉 Python으로 실행합니다. 문서를 Word로 먼저 열어 두고 “열어 둔 보고서에서 '일정' 표의 2행을 이 내용으로 바꿔 줘”처럼 요청하면 `tool_search`가 `word` 서버의 도구를 찾아 활성화합니다.
 
 - **동작 방식:** 실행 중인 Word에 COM으로 연결해 열린 문서를 직접 다룹니다. 파일을 따로 열지 않으므로 사내 DRM이 걸린 문서도 Word에서 열 수 있으면 작업할 수 있습니다. 편집은 화면에 바로 반영되고, 도구 호출 하나가 Word의 Ctrl+Z 한 번으로 되돌아갑니다.
 - **노출 도구:** Word에서 열어 둔 문서용 `word_live_*` 도구만 씁니다. 파일을 python-docx로 직접 여는 도구는 DRM 문서에서 동작하지 않아 숨깁니다.
 - **승인:** 모든 Word MCP 도구는 실행 전에 승인을 받습니다. 계획 모드에서는 쓰지 않습니다. `word_live_save`는 Word의 저장 기능을 그대로 쓰므로, DRM 문서는 저장 후 보안이 유지되는지 처음 한 번 확인하세요.
-- **버전:** 1.6.21 이상은 FastMCP 4(MCP SDK 2)가 필요해 동봉 MCP SDK 1.30과 맞는 마지막 버전을 씁니다.
 
 ## 토큰 사용량
 

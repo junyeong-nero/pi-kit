@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Literal
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 from redis.exceptions import RedisError
 
 from service import QueryError, RedisService
@@ -20,7 +20,7 @@ def create_server(config_dir):
         finally:
             service.close()
 
-    server = FastMCP("빌드센터", lifespan=lifespan)
+    server = MCPServer("빌드센터", lifespan=lifespan)
 
     def call(method, **kwargs):
         try:
