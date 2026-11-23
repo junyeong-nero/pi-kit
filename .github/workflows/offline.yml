@@ -47,6 +47,8 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python -B -m unittest discover -s tests -p 'edge_mcp_test.py'
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python -X utf8 -B -m unittest discover -s tests -p 'word_vba_test.py'
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Assemble complete ZIP
         id: build
         timeout-minutes: 10
@@ -264,7 +266,7 @@ jobs:
                               "--target", str(packages), "-r", str(ROOT / "config/redis/requirements.lock")], check=True)
               # Embedded Python ignores PYTHONPATH. Include our server and site-packages explicitly.
               (runtime / "python313._pth").write_text(
-                  "python313.zip\n.\nLib/site-packages\n../../mcp/build-center\n../../mcp/edge\nimport site\n", encoding="utf-8")
+                  "python313.zip\n.\nLib/site-packages\n../../mcp/build-center\n../../mcp/edge\n../../mcp/word-vba\nimport site\n", encoding="utf-8")
               notices = ROOT / "third_party/python"
               notices.mkdir(parents=True, exist_ok=True)
               shutil.copy2(runtime / "LICENSE.txt", notices / "PYTHON-LICENSE.txt")
@@ -275,7 +277,7 @@ jobs:
                    "sha256": digest(p)} for p in sorted(packages.glob("*.dist-info/METADATA"))
               ], indent=2) + "\n", encoding="utf-8")
               subprocess.run([str(runtime / "python.exe"), "-X", "utf8", "-s", "-c",
-                              "import redis, mcp, pydantic_core, edge_mcp, windows_mcp, win32api, comtypes, word_document_server.main; from main import create_server; from zoneinfo import ZoneInfo; ZoneInfo('Asia/Seoul'); edge_mcp.server_command()"], check=True)
+                              "import redis, mcp, pydantic_core, edge_mcp, windows_mcp, win32api, comtypes, word_vba; from main import create_server; from zoneinfo import ZoneInfo; ZoneInfo('Asia/Seoul'); edge_mcp.server_command()"], check=True)
 
 
           def build(output, no_download=False, prepare_only=False):

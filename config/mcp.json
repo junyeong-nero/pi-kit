@@ -37,16 +37,12 @@
       },
       "timeout": 60
     },
-    "word": {
+    "word_vba": {
       "command": "python",
-      "args": ["-I", "-X", "utf8", "-B", "-m", "word_document_server.main"],
-      "env": { "MCP_TRANSPORT": "stdio" },
-      "description": "Microsoft Word 문서 편집: 사용자가 Word에서 열어 둔 문서(DRM 문서 포함)를 COM으로 읽기·찾기·편집·서식·표·댓글·변경 추적·저장. 파일을 직접 열지 않으므로 사용자가 먼저 Word로 문서를 열어야 함. 편집·저장은 사용자 승인 후 실행",
-      "exposure": "hidden",
-      "toolExposure": {
-        "word_live_*": "deferred"
-      },
-      "timeout": 120
+      "args": ["-I", "-X", "utf8", "-B", "-m", "word_vba"],
+      "description": "Microsoft Word: 사용자가 Word에서 열어 둔 문서(DRM 문서 포함)에 에이전트가 쓴 VBA를 실행해 읽기·검색·편집·필드 갱신(F9)·목차·하이퍼링크 등 Word 개체 모델 전체를 다룹니다. 사용자가 먼저 Word로 문서를 열어야 함. 실행은 사용자 승인 후",
+      "exposure": "deferred",
+      "timeout": 600
     }
   }
 }

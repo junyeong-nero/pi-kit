@@ -23,7 +23,7 @@
 - **버전 고정:** 실행 파일은 [config/offline-artifacts.lock.json](../config/offline-artifacts.lock.json), 확장 의존성은 `config/extensions/package-lock.json`, Python 패키지는 `config/redis/requirements.lock`에 버전과 해시를 고정합니다.
 - **ZIP에서 빼는 것:** 실행 파일은 Git에 넣지 않습니다. 실제 `models.json`, `agent/`, `config/` 아래 세션·캐시, 실제 Redis 매핑(`server_IP_mappings.json`·`owners.json`)은 ZIP에도 넣지 않습니다.
 
-ZIP에는 pi, fd·rg, SVN, Redis 서버와 CLI, 동봉 Python과 MCP용 Node, 직접 만든 확장, pi-subagents·pi-usage·pi-allowlist-plugin·pi-tool-repair·pi-plan-mode·pi-polish·rpiv-ask-user-question·rpiv-todo, Playwright MCP, Windows-MCP·word-mcp-live(동봉 Python 패키지), Windows용 네이티브 파일과 WASM 리소스가 들어갑니다.
+ZIP에는 pi, fd·rg, SVN, Redis 서버와 CLI, 동봉 Python과 MCP용 Node, 직접 만든 확장, pi-subagents·pi-usage·pi-allowlist-plugin·pi-tool-repair·pi-plan-mode·pi-polish·rpiv-ask-user-question·rpiv-todo, Playwright MCP, Windows-MCP(동봉 Python 패키지), Word VBA MCP, Windows용 네이티브 파일과 WASM 리소스가 들어갑니다.
 
 ### Actions를 쓸 수 없을 때: Windows 로컬 패키징
 
@@ -129,6 +129,7 @@ try {
 - **빌드센터 MCP:** Python stdio 서버는 `mcp/build-center/`에 있고, pi 내장 MCP 기능이 [config/mcp.json](../config/mcp.json)을 보고 실행합니다. 별도 MCP 클라이언트는 동봉하지 않습니다. CI가 wheel을 받아 `runtime/python/Lib/site-packages`에 설치하고 `.dist-info`의 라이선스·메타데이터를 보존합니다. 서버·패키지 경로는 `python313._pth`에 상대 경로로 등록합니다. 그래서 `config/mcp.json`은 절대 경로 없이 PATH의 동봉 `python`으로 `-m main`을 실행합니다.
 
 - **Edge MCP:** `mcp/edge/edge_mcp.py`가 동봉 Python의 `-m edge_mcp` 진입점입니다. `python313._pth`에 서버 경로를 넣고, 런처가 `runtime/node/node.exe`와 잠금 파일의 Playwright MCP를 절대 경로로 실행합니다. Node는 시스템 PATH에 추가하지 않고 기존 프로젝트의 Node 설치도 바꾸지 않습니다. `config/playwright.json`은 실행 중인 Edge의 CDP 연결만 지정하므로 브라우저 다운로드·자동 실행은 하지 않습니다. 자동 출력은 `config/playwright-mcp/`에 두고 ZIP에서 제외합니다.
+- **Word VBA MCP:** `mcp/word-vba/word_vba.py`가 동봉 Python의 `-m word_vba` 진입점입니다. `python313._pth`에 서버 경로를 넣고, Word 연결에는 Windows-MCP가 쓰는 동봉 `pywin32`를 함께 씁니다. `tests/word_vba_test.py`가 모듈 조립·오류 변환·멈췄을 때의 timeout을, `npm run test:word-mcp`가 재배치한 ZIP에서 서버 기동과 Word가 없을 때의 오류 안내를 검사합니다. CI에는 Word가 없어 실제 문서 실행은 검증하지 않습니다.
 
 ### CI가 검사하는 것
 
@@ -158,7 +159,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\setup.ps1 -Check
 외부 확장의 설정 위치는 다음과 같습니다.
 
 - **pi-subagents:** [config/extensions/subagent/config.json](../config/extensions/subagent/config.json). Windows에서는 `async: false`를 쓰고 WorkflowScript에도 명시하세요. [백그라운드 실행의 지원 범위](https://github.com/nicobailon/pi-subagents/blob/main/docs/standalone-background.md)를 참고하세요.
-- **MCP 서버:** [config/mcp.json](../config/mcp.json). pi 내장 MCP 기능이 읽습니다. 빌드센터 설정과 매핑은 `config/redis/`에 있습니다. [빌드센터 MCP 안내](../mcp/build-center/README.md)와 [Edge MCP 안내](../mcp/edge/README.md)를 보세요.
+- **MCP 서버:** [config/mcp.json](../config/mcp.json). pi 내장 MCP 기능이 읽습니다. 빌드센터 설정과 매핑은 `config/redis/`에 있습니다. [빌드센터 MCP 안내](../mcp/build-center/README.md)와 [Edge MCP 안내](../mcp/edge/README.md), [Word VBA MCP 안내](../mcp/word-vba/README.md)를 보세요.
 
 ### setup.ps1이 시스템 변수를 쓰는 이유
 

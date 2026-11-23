@@ -43,7 +43,7 @@ ZIP에 pi, 확장과 동봉 도구가 모두 들어 있어 추가로 설치할 �
 | [rpiv-ask-user-question](https://github.com/juicesharp/rpiv-mono/tree/main/packages/rpiv-ask-user-question) | 요구가 모호하거나 방향을 정해야 할 때 모델이 `ask_user_question`으로 선택지 대화 상자를 띄워 사용자에게 물음. 화면이 없는 `pi -p`에서는 도구를 숨김 |
 | [rpiv-todo](https://github.com/juicesharp/rpiv-mono/tree/main/packages/rpiv-todo) | 여러 단계 작업을 `todo` 도구의 작업 목록으로 관리하고 화면 위젯에 진행 상황을 표시. `/todos`로 목록을 봄. 목록은 세션 기록에 저장 |
 
-MCP 서버는 pi 내장 MCP 기능으로 [config/mcp.json](config/mcp.json)에서 연결합니다. 동봉 [빌드센터 MCP](mcp/build-center/README.md)는 빌드센터 Redis의 프로젝트·모듈·담당자별 빌드·시험 결과와 로그를 묶어서 조회합니다 ([설정](docs/installation.md#redis-조회와-로컬-서버)). [Edge MCP](mcp/edge/README.md)는 기존에 로그인한 Edge에 연결해 웹 화면 조회·버튼 클릭·폼 입력을 합니다. [Windows-MCP](#windows-화면-조작)는 Windows 데스크톱 앱을 화면 UI 구조로 읽고 클릭·입력합니다. [Word MCP](#word-문서-편집)는 Word에서 열어 둔 문서를 COM으로 읽고 편집합니다. 사내 MCP 서버도 같은 설정 파일에 추가하면 됩니다.
+MCP 서버는 pi 내장 MCP 기능으로 [config/mcp.json](config/mcp.json)에서 연결합니다. 동봉 [빌드센터 MCP](mcp/build-center/README.md)는 빌드센터 Redis의 프로젝트·모듈·담당자별 빌드·시험 결과와 로그를 묶어서 조회합니다 ([설정](docs/installation.md#redis-조회와-로컬-서버)). [Edge MCP](mcp/edge/README.md)는 기존에 로그인한 Edge에 연결해 웹 화면 조회·버튼 클릭·폼 입력을 합니다. [Windows-MCP](#windows-화면-조작)는 Windows 데스크톱 앱을 화면 UI 구조로 읽고 클릭·입력합니다. [Word VBA MCP](#word-문서-편집)는 Word에서 열어 둔 문서에 에이전트가 쓴 VBA를 실행합니다. 사내 MCP 서버도 같은 설정 파일에 추가하면 됩니다.
 
 기본 도구는 파일 작업 7개와 `ask_user_question`(대화형 화면에서만), `todo`, `harness_tools`, `tool_search`입니다. MCP 도구는 `tool_search`로 찾으면 다음 모델 요청부터 쓸 수 있습니다. 서브에이전트는 `harness_tools`에서 `subagents` 그룹을 켜면 다음 모델 요청부터 사용할 수 있습니다. `action: "disable"`로 다시 숨길 수 있습니다. 기능 파일은 모두 동봉하며 기본 스킬·프롬프트 템플릿 자동 로딩은 비워 둡니다. 사용자·프로젝트가 추가한 도구와 스킬은 보존합니다. 상세 동작과 측정값은 [도구 노출 안내](docs/tool-exposure.md)에 있습니다.
 
@@ -65,11 +65,12 @@ Playwright MCP와 전용 Node 런타임은 ZIP에 동봉하며, 브라우저를 
 
 ## Word 문서 편집
 
-[word-mcp-live](https://github.com/ykarapazar/word-mcp-live) 1.6.22(MIT)을 동봉 Python으로 실행합니다. 문서를 Word로 먼저 열어 두고 “열어 둔 보고서에서 '일정' 표의 2행을 이 내용으로 바꿔 줘”처럼 요청하면 `tool_search`가 `word` 서버의 도구를 찾아 활성화합니다.
+동봉 [Word VBA MCP](mcp/word-vba/README.md)(`word_vba`)는 도구 두 개(`list_documents`, `run_vba`)로 Word 개체 모델 전체를 다룹니다. 문서를 Word로 먼저 열어 두고 “열어 둔 보고서의 목차를 보여 주고 4.2절을 요약해 줘”, “필드를 모두 갱신해 줘”처럼 요청하면 에이전트가 VBA를 써서 실행합니다.
 
-- **동작 방식:** 실행 중인 Word에 COM으로 연결해 열린 문서를 직접 다룹니다. 파일을 따로 열지 않으므로 사내 DRM이 걸린 문서도 Word에서 열 수 있으면 작업할 수 있습니다. 편집은 화면에 바로 반영되고, 도구 호출 하나가 Word의 Ctrl+Z 한 번으로 되돌아갑니다.
-- **노출 도구:** Word에서 열어 둔 문서용 `word_live_*` 도구만 씁니다. 파일을 python-docx로 직접 여는 도구는 DRM 문서에서 동작하지 않아 숨깁니다.
-- **승인:** 모든 Word MCP 도구는 실행 전에 승인을 받습니다. 계획 모드에서는 쓰지 않습니다. `word_live_save`는 Word의 저장 기능을 그대로 쓰므로, DRM 문서는 저장 후 보안이 유지되는지 처음 한 번 확인하세요.
+- **처음 한 번:** Word의 파일 → 옵션 → 보안 센터 → 보안 센터 설정 → 매크로 설정에서 **“VBA 프로젝트 개체 모델에 안전하게 액세스”**를 켜고 Word를 다시 시작해야 합니다. 다른 프로그램도 매크로를 넣을 수 있게 하는 설정이므로 회사 보안 정책을 먼저 확인하세요.
+- **동작 방식:** 코드는 보이지 않는 임시 문서에 넣어 실행하고, 임시 문서는 저장하지 않고 닫습니다. 작업할 문서나 `Normal.dotm`에는 코드를 넣지 않으므로 DRM 문서도 Word에서 열 수 있으면 작업할 수 있습니다. 한 번 실행한 변경은 Word의 Ctrl+Z 한 번으로 되돌아갑니다.
+- **승인:** VBA는 무엇이든 할 수 있으므로 실행마다 코드를 확인하고 승인하세요. 계획 모드에서는 쓰지 않습니다.
+- **멈췄을 때:** VBA 컴파일 오류나 확인 창이 뜨면 Word가 기다립니다. 제한 시간(기본 120초)이 지나면 안내가 나오며, Word 화면에서 창을 닫으면 다시 쓸 수 있습니다.
 
 ## 토큰 사용량
 

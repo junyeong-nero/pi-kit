@@ -45,6 +45,9 @@ async def main():
         assert (log["text"], log["truncated"]) == ("한글 실패 로그\n마지막 줄", True), log
         missing = await call("get_results", project_name="ProjectA", module_ids=["missing"])
         assert missing["modules"][0]["module_error"] == "missing"
+        # The model must see why a query failed, not only "Error executing tool".
+        unknown = await session.call_tool("find_modules", {"project_name": "NoSuchProject"})
+        assert unknown.is_error and "등록되지 않은 프로젝트" in unknown.content[0].text, unknown.content
     print("Relocated config/mcp.json command + Python + redis-py + native wheels: all five tools passed")
 
 
