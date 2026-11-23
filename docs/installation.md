@@ -25,7 +25,7 @@ Get-FileHash .\pi-kit-win-x64.zip -Algorithm SHA256
 
 > GitHub 화면의 초록색 **Code → Download ZIP**(소스 코드)은 실행 파일이 없어 동작하지 않습니다. 반드시 Releases의 **pi-kit-win-x64.zip**을 받으세요.
 
-배포 ZIP에는 pi, 확장, fd·rg·SVN·Redis 서버와 CLI, Python·redis-py·빌드센터 MCP, Windows 화면 조작용 Windows-MCP, Playwright MCP와 전용 Node 런타임이 모두 들어 있습니다. Edge는 PC에 설치된 브라우저를 사용하며, 연결 허용 방법은 [Edge MCP 안내](../mcp/edge/README.md)에 있습니다. 전용 Node는 시스템 PATH에 추가하지 않습니다.
+배포 ZIP에는 pi, 확장, fd·rg·SVN·Redis 서버와 CLI, Python·redis-py·빌드센터 MCP, Windows 화면 조작용 Windows-MCP, Word 문서 편집용 word-mcp-live, Playwright MCP와 전용 Node 런타임이 모두 들어 있습니다. Edge는 PC에 설치된 브라우저를 사용하며, 연결 허용 방법은 [Edge MCP 안내](../mcp/edge/README.md)에 있습니다. 전용 Node는 시스템 PATH에 추가하지 않습니다.
 
 ### 2단계. 폐쇄망 PC에 풀기
 

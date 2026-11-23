@@ -36,6 +36,17 @@
         "Screenshot": "hidden"
       },
       "timeout": 60
+    },
+    "word": {
+      "command": "python",
+      "args": ["-I", "-X", "utf8", "-B", "-m", "word_document_server.main"],
+      "env": { "MCP_TRANSPORT": "stdio" },
+      "description": "Microsoft Word 문서 편집: 사용자가 Word에서 열어 둔 문서(DRM 문서 포함)를 COM으로 읽기·찾기·편집·서식·표·댓글·변경 추적·저장. 파일을 직접 열지 않으므로 사용자가 먼저 Word로 문서를 열어야 함. 편집·저장은 사용자 승인 후 실행",
+      "exposure": "hidden",
+      "toolExposure": {
+        "word_live_*": "deferred"
+      },
+      "timeout": 120
     }
   }
 }

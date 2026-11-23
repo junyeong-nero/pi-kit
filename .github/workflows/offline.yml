@@ -275,7 +275,7 @@ jobs:
                    "sha256": digest(p)} for p in sorted(packages.glob("*.dist-info/METADATA"))
               ], indent=2) + "\n", encoding="utf-8")
               subprocess.run([str(runtime / "python.exe"), "-X", "utf8", "-s", "-c",
-                              "import redis, mcp, pydantic_core, edge_mcp, windows_mcp, win32api, comtypes; from main import create_server; from zoneinfo import ZoneInfo; ZoneInfo('Asia/Seoul'); edge_mcp.server_command()"], check=True)
+                              "import redis, mcp, pydantic_core, edge_mcp, windows_mcp, win32api, comtypes, word_document_server.main; from main import create_server; from zoneinfo import ZoneInfo; ZoneInfo('Asia/Seoul'); edge_mcp.server_command()"], check=True)
 
 
           def build(output, no_download=False, prepare_only=False):
@@ -402,6 +402,7 @@ jobs:
           $env:USAGE_TEST_BUNDLE = "$env:RUNNER_TEMP\$env:OFFLINE_TEST_FOLDER\pi-kit"
           $env:EDGE_TEST_BUNDLE = $env:USAGE_TEST_BUNDLE
           $env:WINDOWS_MCP_TEST_BUNDLE = $env:USAGE_TEST_BUNDLE
+          $env:WORD_MCP_TEST_BUNDLE = $env:USAGE_TEST_BUNDLE
           try {
             npm run test:usage
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
@@ -409,10 +410,13 @@ jobs:
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
             npm run test:windows-mcp
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            npm run test:word-mcp
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
           } finally {
             Remove-Item Env:USAGE_TEST_BUNDLE -ErrorAction SilentlyContinue
             Remove-Item Env:EDGE_TEST_BUNDLE -ErrorAction SilentlyContinue
             Remove-Item Env:WINDOWS_MCP_TEST_BUNDLE -ErrorAction SilentlyContinue
+            Remove-Item Env:WORD_MCP_TEST_BUNDLE -ErrorAction SilentlyContinue
           }
       - name: Verify Windows binaries with server network access blocked
         timeout-minutes: 6

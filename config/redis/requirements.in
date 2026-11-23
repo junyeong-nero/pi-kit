@@ -4,3 +4,5 @@ redis==8.1.0
 tzdata==2026.5
 # Windows desktop automation MCP (config/mcp.json "windows"). 0.8.6+ requires Python 3.14; the bundle ships 3.13.
 windows-mcp==0.8.5
+# Word COM automation MCP (config/mcp.json "word"). 1.6.21+ requires fastmcp 4 / mcp 2, which conflicts with mcp==1.30.0.
+word-mcp-live==1.6.20

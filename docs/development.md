@@ -23,7 +23,7 @@
 - **버전 고정:** 실행 파일은 [config/offline-artifacts.lock.json](../config/offline-artifacts.lock.json), 확장 의존성은 `config/extensions/package-lock.json`, Python 패키지는 `config/redis/requirements.lock`에 버전과 해시를 고정합니다.
 - **ZIP에서 빼는 것:** 실행 파일은 Git에 넣지 않습니다. 실제 `models.json`, `agent/`, `config/` 아래 세션·캐시, 실제 Redis 매핑(`server_IP_mappings.json`·`owners.json`)은 ZIP에도 넣지 않습니다.
 
-ZIP에는 pi, fd·rg, SVN, Redis 서버와 CLI, 동봉 Python과 MCP용 Node, 직접 만든 확장, pi-subagents·pi-usage·pi-allowlist-plugin·pi-tool-repair·pi-plan-mode·pi-polish·rpiv-ask-user-question·rpiv-todo, Playwright MCP, Windows-MCP(동봉 Python 패키지), Windows용 네이티브 파일과 WASM 리소스가 들어갑니다.
+ZIP에는 pi, fd·rg, SVN, Redis 서버와 CLI, 동봉 Python과 MCP용 Node, 직접 만든 확장, pi-subagents·pi-usage·pi-allowlist-plugin·pi-tool-repair·pi-plan-mode·pi-polish·rpiv-ask-user-question·rpiv-todo, Playwright MCP, Windows-MCP·word-mcp-live(동봉 Python 패키지), Windows용 네이티브 파일과 WASM 리소스가 들어갑니다.
 
 ### Actions를 쓸 수 없을 때: Windows 로컬 패키징
 
@@ -99,6 +99,7 @@ foreach ($file in $manifest.files.PSObject.Properties) {
 $env:USAGE_TEST_BUNDLE = $bundle
 $env:EDGE_TEST_BUNDLE = $bundle
 $env:WINDOWS_MCP_TEST_BUNDLE = $bundle
+$env:WORD_MCP_TEST_BUNDLE = $bundle
 try {
     npm run test:usage
     if ($LASTEXITCODE) { throw 'token usage test failed' }
@@ -106,10 +107,12 @@ try {
     if ($LASTEXITCODE) { throw 'Edge MCP test failed' }
     npm run test:windows-mcp
     if ($LASTEXITCODE) { throw 'Windows-MCP test failed' }
+    npm run test:word-mcp
+    if ($LASTEXITCODE) { throw 'Word MCP test failed' }
     py -3.13 tests/pi-standalone.py "$bundle" --direct
     if ($LASTEXITCODE) { throw 'standalone pi test failed' }
 } finally {
-    Remove-Item Env:USAGE_TEST_BUNDLE, Env:EDGE_TEST_BUNDLE, Env:WINDOWS_MCP_TEST_BUNDLE -ErrorAction SilentlyContinue
+    Remove-Item Env:USAGE_TEST_BUNDLE, Env:EDGE_TEST_BUNDLE, Env:WINDOWS_MCP_TEST_BUNDLE, Env:WORD_MCP_TEST_BUNDLE -ErrorAction SilentlyContinue
 }
 ```
 
@@ -131,7 +134,7 @@ try {
 
 ZIP을 한글·공백이 들어간 다른 경로로 옮긴 뒤 아래를 검사합니다. Windows CI가 실행되지 않았다면 배포 검증이 끝난 것이 아닙니다.
 
-- 파일 해시, 확장 로딩, Windows-MCP 실행, pi 모델 API 스모크 테스트
+- 파일 해시, 확장 로딩, Windows-MCP·Word MCP 실행, pi 모델 API 스모크 테스트
 - Redis: 별도 Redis·.NET 설치 없이 직접 실행과 래퍼 실행, 인증·조회·Lua·벤치마크·RDB 저장과 재시작 후 복원, 저장 파일 검사 도구, Sentinel
 - 빌드센터 MCP: Python 회귀 테스트(`tests/build_center_mcp_test.py`), `config/mcp.json`의 명령 그대로 동봉 Python 서버를 띄워 인증된 Redis의 모듈 100개를 조회하는 통합 테스트(`tests/build-center-mcp-bundle.py`), 실제 pi에서 `tool_search` → `mcp__build_center__list_projects`를 호출하는 스모크 테스트(`tests/pi-standalone.py`, `tests/prompt-footprint.py`). 사내 Redis에는 접속하지 않습니다.
 - Edge MCP: `tests/edge_mcp_test.py`로 런처의 동봉 Node 선택·누락 오류·stdio 전달을 검사합니다. ZIP 재배치 후 `npm run test:edge`가 실제 동봉 Python→Node→MCP를 실행하고 별도 테스트 프로필의 Edge에 CDP로 연결해 로그인 쿠키 재사용·폼 입력·클릭·연결 해제 후 브라우저 유지 여부를 검사합니다. 실제 사내 페이지나 사용자의 평소 Edge 프로필은 사용하지 않습니다. macOS에서는 Edge가 없으면 설치된 Chrome으로 CDP 경로만 검증할 수 있으며, Windows 검증을 대체하지 않습니다.

@@ -26,6 +26,7 @@
     "test:usage": "node --experimental-strip-types --test tests/usage-tracker.test.mjs",
     "test:edge": "node --test tests/edge-mcp.test.mjs",
     "test:windows-mcp": "node --test tests/windows-mcp.test.mjs",
+    "test:word-mcp": "node --test tests/word-mcp.test.mjs",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
