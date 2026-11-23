@@ -15,6 +15,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 ERROR_MARK = "\x01PI_VBA_ERROR\x01"
 MAX_OUTPUT = 30000
 WD_ALERTS_NONE = 0
+SCRATCH_VISIBLE = True  # Run finds macros of the active document only; a hidden document may never become active
 VBOM_HELP = ("Word가 VBA 코드 추가를 막았습니다. Word의 파일 → 옵션 → 보안 센터 → 보안 센터 설정 → 매크로 설정에서 "
              "'VBA 프로젝트 개체 모델에 안전하게 액세스'를 켜고 Word를 다시 시작하세요(회사 보안 정책 확인 후)")
 
@@ -24,16 +25,24 @@ _busy = False
 
 
 def build_module(code, entry):
-    """User code first (Option lines must lead the module), then a wrapper that turns VBA runtime errors into text."""
+    """User code first (Option lines must lead the module), then the entry Word runs.
+
+    Application.Run only finds macros of the active document, so Word runs the entry while the scratch document is
+    active; the entry then activates the target, groups the changes into one undo entry and turns errors into text.
+    """
     if not re.search(r"^\s*(Public\s+|Private\s+)?Function\s+PiMain\s*\(\s*\)", code, re.IGNORECASE | re.MULTILINE):
         raise ValueError("code에 인자 없는 Function PiMain() As String이 있어야 합니다")
     return (code.replace("\r\n", "\n").rstrip() + "\n\n"
-            f"Public Function {entry}() As String\n"
+            f"Public Function {entry}(targetName As String, undoName As String) As String\n"
             "    On Error GoTo Failed\n"
+            "    Documents(targetName).Activate\n"
+            "    Application.UndoRecord.StartCustomRecord undoName\n"
             f"    {entry} = CStr(PiMain())\n"
+            "    Application.UndoRecord.EndCustomRecord\n"
             "    Exit Function\n"
             "Failed:\n"
             f"    {entry} = Chr$(1) & \"PI_VBA_ERROR\" & Chr$(1) & Err.Number & \": \" & Err.Description\n"
+            "    If Application.UndoRecord.IsRecordingCustomRecord Then Application.UndoRecord.EndCustomRecord\n"
             "End Function\n").replace("\n", "\r\n")
 
 
@@ -85,8 +94,10 @@ def _run_vba(code, document, undo_name):
     module_code = build_module(code, entry)
     app = _word()
     target = _target(app, document)
-    scratch = app.Documents.Add("", False, 0, False)  # Template, NewTemplate, DocumentType, Visible
-    alerts = app.DisplayAlerts
+    target_name = target.FullName
+    alerts, screen = app.DisplayAlerts, app.ScreenUpdating
+    app.ScreenUpdating = False  # the scratch window must be active for Run; keep it from flashing
+    scratch = app.Documents.Add("", False, 0, SCRATCH_VISIBLE)  # Template, NewTemplate, DocumentType, Visible
     try:
         try:
             module = scratch.VBProject.VBComponents.Add(1)  # vbext_ct_StdModule
@@ -94,17 +105,14 @@ def _run_vba(code, document, undo_name):
             raise ValueError(VBOM_HELP) from None
         module.Name = "PiMcp_" + entry[6:]
         module.CodeModule.AddFromString(module_code)
-        target.Activate()
+        scratch.Activate()
         app.DisplayAlerts = WD_ALERTS_NONE
-        record = app.UndoRecord
-        record.StartCustomRecord(undo_name)
-        try:
-            result = app.Run(f"{module.Name}.{entry}")
-        finally:
-            record.EndCustomRecord()
+        result = app.Run(f"{module.Name}.{entry}", target_name, undo_name)
     finally:
         app.DisplayAlerts = alerts
         scratch.Close(0)  # wdDoNotSaveChanges
+        target.Activate()
+        app.ScreenUpdating = screen
     return {"document": target.Name, **parse_result(result)}
 
 

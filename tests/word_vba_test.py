@@ -16,8 +16,11 @@ class WordVbaTest(unittest.TestCase):
         code = "Option Explicit\nFunction PiMain() As String\n  PiMain = ActiveDocument.Name\nEnd Function"
         module = build_module(code, "PiRun_ab12")
         self.assertTrue(module.startswith("Option Explicit\r\n"))
-        self.assertIn("Public Function PiRun_ab12() As String\r\n    On Error GoTo Failed\r\n", module)
-        self.assertIn("PiRun_ab12 = CStr(PiMain())", module)
+        self.assertIn("Public Function PiRun_ab12(targetName As String, undoName As String) As String\r\n"
+                      "    On Error GoTo Failed\r\n    Documents(targetName).Activate\r\n", module)
+        # PiMain runs inside one undo entry, which is closed on success and on error
+        self.assertIn("StartCustomRecord undoName\r\n    PiRun_ab12 = CStr(PiMain())\r\n    Application.UndoRecord.EndCustomRecord", module)
+        self.assertIn("If Application.UndoRecord.IsRecordingCustomRecord Then Application.UndoRecord.EndCustomRecord", module)
         self.assertNotIn("\n\n\n", module.replace("\r", ""))
         self.assertNotRegex(module.replace("\r\n", ""), "\n")  # CRLF only
 
