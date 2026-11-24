@@ -7,10 +7,10 @@
 완성 ZIP은 아래 Releases에서 배포합니다. 아직 Release가 없다면 첫 Windows 빌드·검증과 게시가 끝나지 않은 상태입니다. 소스 ZIP으로 대신 설치하지 마세요.
 
 1. [GitHub Releases](https://github.com/junyeong-nero/pi-kit/releases)에서 최신 `v*` 릴리스의 **pi-kit-win-x64.zip**을 받습니다. GitHub의 소스 코드 **Download ZIP**은 실행할 수 없습니다.
-2. 폐쇄망 PC에 풀고 `config\models.json`에 사내 API 주소·모델을 적은 뒤 API 키를 시스템 변수로 등록합니다.
-3. 배포 폴더에서 `.\setup.ps1`을 한 번 실행하고, 새 터미널의 아무 폴더에서 `pi`를 실행합니다.
+2. 폐쇄망 PC의 `D:\2_dev`에 풀어 `D:\2_dev\pi-kit`를 만들고, `config\models.json`에 사내 API 주소·모델을 적은 뒤 API 키를 시스템 변수로 등록합니다.
+3. `D:\2_dev\pi-kit`에서 `.\setup.ps1`을 한 번 실행하고, 새 터미널의 아무 폴더에서 `pi`를 실행합니다.
 
-ZIP에 pi, 확장과 동봉 도구가 모두 들어 있어 추가로 설치할 것이 없습니다. 단계별 명령, 문제 해결, 업데이트, SVN·Redis 사용법은 [설치와 설정](docs/installation.md)에 있습니다.
+다른 위치에 풀어도 됩니다. `setup.ps1`이 자기 폴더를 기준으로 경로를 설정하므로, 안내의 `D:\2_dev\pi-kit`만 푼 경로로 바꿔 읽으세요. ZIP에 pi, 확장과 동봉 도구가 모두 들어 있어 추가로 설치할 것이 없습니다. 단계별 명령, 문제 해결, 업데이트, SVN·Redis 사용법은 [설치와 설정](docs/installation.md)에 있습니다.
 
 ## 도구 사용 가이드
 

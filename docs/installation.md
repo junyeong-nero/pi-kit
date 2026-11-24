@@ -29,7 +29,7 @@ Get-FileHash .\pi-kit-win-x64.zip -Algorithm SHA256
 
 ### 2단계. 폐쇄망 PC에 풀기
 
-ZIP을 폐쇄망 PC로 옮겨 원하는 위치에 풉니다. ZIP 안에 `pi-kit` 폴더가 들어 있어서, 예를 들어 `D:\`에 풀면 `D:\pi-kit`가 생깁니다. 이 문서는 이 경로를 예로 듭니다. `D:\pi-kit\setup.ps1`이 보이면 맞게 푼 것입니다(압축 풀기 도구가 폴더를 하나 더 만들어 `...\pi-kit\pi-kit\`가 됐다면 안쪽 폴더를 쓰세요).
+ZIP을 폐쇄망 PC로 옮겨 원하는 위치에 풉니다. ZIP 안에 `pi-kit` 폴더가 들어 있어서, `D:\2_dev`에 풀면 `D:\2_dev\pi-kit`가 생깁니다. 이 문서는 이 경로를 기준으로 안내합니다. 다른 위치에 풀었다면 명령의 경로만 바꾸면 됩니다. `D:\2_dev\pi-kit\setup.ps1`이 보이면 맞게 푼 것입니다(압축 풀기 도구가 폴더를 하나 더 만들어 `...\pi-kit\pi-kit\`가 됐다면 안쪽 폴더를 쓰세요).
 
 `setup.ps1`이 이 경로를 시스템에 등록하므로, 풀고 난 뒤 폴더를 옮기면 `setup.ps1`을 다시 실행해야 합니다.
 
@@ -37,7 +37,7 @@ ZIP을 폐쇄망 PC로 옮겨 원하는 위치에 풉니다. ZIP 안에 `pi-kit`
 
 1. `config\models.example.json`을 같은 폴더에 `models.json`이라는 이름으로 복사합니다.
    ```powershell
-   cd D:\pi-kit
+   cd D:\2_dev\pi-kit
    Copy-Item config\models.example.json config\models.json
    ```
 2. `config\models.json`을 메모장 등으로 열어 두 곳을 고칩니다.
@@ -64,7 +64,7 @@ Invoke-RestMethod http://<사내API주소>/v1/models -Headers @{ Authorization =
 배포 폴더에서 PowerShell을 열고 아래 두 명령을 순서대로 실행합니다. 관리자 권한 확인 창이 뜨면 **예**를 누릅니다.
 
 ```powershell
-cd D:\pi-kit
+cd D:\2_dev\pi-kit
 Set-ExecutionPolicy -Scope Process Bypass -Force
 .\setup.ps1
 ```
@@ -84,8 +84,8 @@ Setup complete. Fully close your terminal application, reopen it, and run 'pi' i
 1. 터미널 프로그램(Windows Terminal, VS Code 등)을 **완전히 닫았다가 다시 엽니다.** 이미 열려 있던 창에는 새 환경 변수가 반영되지 않습니다.
 2. 제대로 등록됐는지 확인합니다.
    ```powershell
-   Get-Command pi | Select-Object Source   # D:\pi-kit\bin\pi\pi.exe 여야 함
-   $env:PI_CODING_AGENT_DIR                # D:\pi-kit\config 여야 함
+   Get-Command pi | Select-Object Source   # D:\2_dev\pi-kit\bin\pi\pi.exe 여야 함
+   $env:PI_CODING_AGENT_DIR                # D:\2_dev\pi-kit\config 여야 함
    ```
 3. 작업할 프로젝트 폴더에서 pi를 실행합니다.
    ```powershell
@@ -101,7 +101,7 @@ Setup complete. Fully close your terminal application, reopen it, and run 'pi' i
 작은 모델은 프로젝트 구조와 빌드 명령을 모르면 탐색에 시간을 쓰고 엉뚱한 명령을 실행합니다. 효과 대비 가장 손이 덜 가는 개선이므로 먼저 해 두기를 권합니다.
 
 ```powershell
-Copy-Item D:\pi-kit\config\project-AGENTS.template.md D:\work\MyProject\AGENTS.md
+Copy-Item D:\2_dev\pi-kit\config\project-AGENTS.template.md D:\work\MyProject\AGENTS.md
 ```
 
 [템플릿](../config/project-AGENTS.template.md)의 `<...>` 부분을 채우고 쓰지 않는 섹션은 지웁니다. 디렉터리 지도, 빌드·테스트 명령, 코딩 규칙, 수정 금지 경로, 작업 완료 조건을 적는 칸이 있습니다. 도구 사용법은 공통 가이드가 다루므로 여기에 다시 적지 않습니다.

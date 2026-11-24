@@ -858,8 +858,8 @@ pi
 <div class="eyebrow">부록 B · 방산망 실행</div>
 <h2>압축 해제 → 사내 모델 설정 → setup.ps1 → pi</h2>
 <div class="body">
-<pre style="font-size:16px"><span class="p">PS&gt;</span> Expand-Archive .\pi-kit-win-x64.zip -DestinationPath D:\
-<span class="p">PS&gt;</span> cd D:\pi-kit
+<pre style="font-size:16px"><span class="p">PS&gt;</span> Expand-Archive .\pi-kit-win-x64.zip -DestinationPath D:\2_dev
+<span class="p">PS&gt;</span> cd D:\2_dev\pi-kit
 <span class="p">PS&gt;</span> Copy-Item config\models.example.json config\models.json
 <span class="c"># config\models.json의 baseUrl / model id를 사내 제공 값으로 편집</span>
 <span class="p">PS&gt;</span> setx /M CORP_LLM_API_KEY "&lt;발급받은 API KEY&gt;"   <span class="c"># 관리자 터미널</span>
