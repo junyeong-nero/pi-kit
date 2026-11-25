@@ -3,10 +3,16 @@
 param(
     [switch]$Check,
     # Internal: the elevated child changes machine settings, never another account's user settings.
-    [switch]$SystemOnly
+    [switch]$SystemOnly,
+    # Internal: where the elevated child writes its error, because its window closes before anyone can read it.
+    [string]$ErrorLog
 )
 $ErrorActionPreference = "Stop"
 $utf8 = New-Object Text.UTF8Encoding($false)
+trap {
+    if ($SystemOnly -and $ErrorLog) { [IO.File]::WriteAllText($ErrorLog, ($_ | Out-String), $utf8); exit 1 }
+    break  # otherwise stop exactly as without the trap
+}
 [Console]::InputEncoding = $utf8
 [Console]::OutputEncoding = $utf8
 $BundleRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..")).TrimEnd('\')
@@ -151,18 +157,24 @@ function Get-MachinePath {
     $value = [string][Microsoft.Win32.Registry]::LocalMachine.OpenSubKey($envKeyPath).GetValue('Path', '', 'DoNotExpandEnvironmentNames')
     @($value.Split(';') | Where-Object { $_ } | ForEach-Object { $_.TrimEnd('\') })
 }
-function Test-SystemReady {
+function Get-SystemProblems {
+    # What differs from the wanted machine settings, one line each; empty when setup is complete.
     $machinePath = @(Get-MachinePath)
     $expected = $systemPathDirs
     for ($i = 0; $i -lt $expected.Count; $i++) {
-        if ($machinePath.Count -le $i -or $machinePath[$i] -ne $expected[$i]) { return $false }
-        if (@($machinePath | Where-Object { $_ -eq $expected[$i] }).Count -ne 1) { return $false }
+        $actual = if ($machinePath.Count -gt $i) { $machinePath[$i] } else { '(none)' }
+        if ($actual -ne $expected[$i]) { "System PATH entry $($i + 1) is '$actual', expected '$($expected[$i])'" }
+        $count = @($machinePath | Where-Object { $_ -eq $expected[$i] }).Count
+        if ($count -gt 1) { "System PATH has '$($expected[$i])' $count times" }
     }
     $legacy = @(& $legacyPathDirs $BundleRoot)
-    if (@($machinePath | Where-Object { $legacy -contains $_ }).Count) { return $false }
-    $wrongVars = @($machineVars.Keys | Where-Object { [Environment]::GetEnvironmentVariable($_, 'Machine') -ne $machineVars[$_] })
-    return ($wrongVars.Count -eq 0)
+    foreach ($entry in @($machinePath | Where-Object { $legacy -contains $_ })) { "System PATH still has the old entry '$entry'" }
+    foreach ($name in @($machineVars.Keys | Sort-Object)) {
+        $actual = [Environment]::GetEnvironmentVariable($name, 'Machine')
+        if ($actual -ne $machineVars[$name]) { "System variable $name is '$actual', expected '$($machineVars[$name])'" }
+    }
 }
+function Test-SystemReady { @(Get-SystemProblems).Count -eq 0 }
 $previousHome = [Environment]::GetEnvironmentVariable('HSC_PI_HARNESS_HOME', 'Machine')
 
 $models = Join-Path $configDir 'models.json'
@@ -179,7 +191,8 @@ Get-Content -LiteralPath $models -Raw -Encoding UTF8 | ConvertFrom-Json | Out-Nu
 
 if (-not (Test-SystemReady)) {
     $principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
-    if ($principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    $elevated = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    if ($elevated) {
         $envKey = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey($envKeyPath, $true)
         try {
             $remove = $systemPathDirs + @(& $legacyPathDirs $BundleRoot) + @(if ($previousHome) { (& $pathDirs $previousHome) + (& $legacyPathDirs $previousHome) })
@@ -194,10 +207,30 @@ if (-not (Test-SystemReady)) {
         throw "Administrator rights are required to update system environment variables."
     } else {
         Write-Host "Requesting administrator rights to update system environment variables..."
-        Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe') -Verb RunAs -Wait `
-            -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"", '-SystemOnly')
+        $childLog = Join-Path ([IO.Path]::GetTempPath()) "pi-kit-setup-$PID.log"
+        Remove-Item -LiteralPath $childLog -ErrorAction SilentlyContinue
+        try {
+            $child = Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe') -Verb RunAs -Wait -PassThru `
+                -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"", '-SystemOnly', '-ErrorLog', "`"$childLog`"")
+        } catch {
+            throw "The administrator prompt was declined or could not start: $($_.Exception.Message)"
+        }
+        if (Test-Path -LiteralPath $childLog) {
+            $childError = [IO.File]::ReadAllText($childLog, $utf8).Trim()
+            Remove-Item -LiteralPath $childLog -ErrorAction SilentlyContinue
+            throw "The elevated setup failed: $childError"
+        }
+        if ($child.ExitCode) { throw "The elevated setup exited with code $($child.ExitCode)." }
     }
-    if (-not (Test-SystemReady)) { throw "System environment variables were not updated (administrator rights required)." }
+    $problems = @(Get-SystemProblems)
+    if ($problems.Count) {
+        $how = if ($elevated) {
+            'Setup ran with administrator rights and wrote these values, but reading them back gives different ones. Security software or a group policy may be resetting system environment variables.'
+        } else {
+            'The elevated setup reported success, but the values read back differ. Security software or a group policy may be resetting system environment variables.'
+        }
+        throw "System environment variables do not match after the update. $how`n - $($problems -join "`n - ")"
+    }
 }
 if ($SystemOnly) { return }
 
