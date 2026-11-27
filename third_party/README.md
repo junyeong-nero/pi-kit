@@ -33,18 +33,18 @@ fd·rg는 exe만 넣고, SVN·Redis는 원본 패키지 전체를 넣습니다.
 
 | 배포 경로 | 버전 | 출처 | 라이선스 |
 |---|---|---|---|
-| `vendor/extensions/node_modules/@playwright/mcp/` | 0.0.85 | https://github.com/microsoft/playwright-mcp | Apache-2.0, LICENSE 보존. 정확한 Playwright/Core 버전과 전이 의존성은 npm 잠금 파일에 고정 |
-| `vendor/extensions/node_modules/pi-subagents/` | 0.88.0 | https://github.com/nicobailon/pi-subagents | MIT, 패키지의 LICENSE 보존 |
+| `vendor/extensions/node_modules/@playwright/mcp/` | 0.0.86 | https://github.com/microsoft/playwright-mcp | Apache-2.0, LICENSE 보존. 정확한 Playwright/Core 버전과 전이 의존성은 npm 잠금 파일에 고정 |
+| `vendor/extensions/node_modules/pi-subagents/` | 0.90.0 | https://github.com/nicobailon/pi-subagents | MIT, 패키지의 LICENSE 보존 |
 | `vendor/extensions/node_modules/@tian.zuo/pi-usage/` | 0.5.1 | https://github.com/TianZuo555/pi-extensions/tree/main/packages/pi-usage | MIT, 패키지의 LICENSE 보존. `effect`·`playwriter` 등 전이 의존성도 잠금 파일대로 동봉 |
 | `vendor/extensions/node_modules/pi-allowlist-plugin/` | 1.3.4 | https://github.com/goldfix/pi-allowlist-plugin | MIT, 패키지의 LICENSE 보존 |
-| `vendor/extensions/node_modules/@juicesharp/rpiv-ask-user-question/` | 2.15.0 | https://github.com/juicesharp/rpiv-mono/tree/main/packages/rpiv-ask-user-question | MIT, 패키지의 LICENSE 보존 |
-| `vendor/extensions/node_modules/@juicesharp/rpiv-todo/` | 2.15.0 | https://github.com/juicesharp/rpiv-mono/tree/main/packages/rpiv-todo | MIT, 패키지의 LICENSE 보존 |
-| `vendor/extensions/node_modules/@narumitw/pi-plan-mode/` | 0.60.1 | https://github.com/narumiruna/pi-extensions/tree/main/packages/pi-plan-mode | MIT, 패키지의 LICENSE 보존. `@narumitw/pi-tui-kit`(MIT)·`grok-mermaid`(Apache-2.0)·`highlight.js`(BSD-3-Clause) 등 전이 의존성도 잠금 파일대로 동봉 |
+| `vendor/extensions/node_modules/@juicesharp/rpiv-ask-user-question/` | 2.16.0 | https://github.com/juicesharp/rpiv-mono/tree/main/packages/rpiv-ask-user-question | MIT, 패키지의 LICENSE 보존 |
+| `vendor/extensions/node_modules/@juicesharp/rpiv-todo/` | 2.16.0 | https://github.com/juicesharp/rpiv-mono/tree/main/packages/rpiv-todo | MIT, 패키지의 LICENSE 보존 |
+| `vendor/extensions/node_modules/@narumitw/pi-plan-mode/` | 0.62.0 | https://github.com/narumiruna/pi-extensions/tree/main/packages/pi-plan-mode | MIT, 패키지의 LICENSE 보존. `@narumitw/pi-tui-kit`(MIT)·`grok-mermaid`(Apache-2.0)·`highlight.js`(BSD-3-Clause) 등 전이 의존성도 잠금 파일대로 동봉 |
 | `extensions/context-bar/index.ts` | pi-context-bar 0.1.2 기반 수정본 | https://github.com/Pringled/pi-extensions/tree/main/packages/pi-context-bar | MIT, Copyright (c) Thomas van Dongen. 파일 머리말에 출처·라이선스 표기. 같은 저자의 pi-polish 패키지 LICENSE도 `vendor/extensions/node_modules/pi-polish/LICENSE`에 동봉 |
-| `vendor/extensions/node_modules/pi-polish/` | 0.1.13 | https://github.com/Pringled/pi-extensions/tree/main/packages/pi-polish | MIT, 패키지의 LICENSE 보존. `extensions/tools.ts`만 로드하고 pi 내부 UI를 바꾸는 `chrome.ts`는 로드하지 않음. 빌드 때 `powershell`을 `bash`와 같은 셸 명령 행으로 묶고, `edit`·`write` 행에 harness-env의 인코딩 안내(`원래 인코딩 CP949 유지` 등)를 표시하도록 `tools.ts`를 치환(`.github/workflows/offline.yml`의 `prepare_extensions`). `shiki`·`@shikijs/*`(MIT)·`diff`(BSD-3-Clause) 등 전이 의존성도 잠금 파일대로 동봉 |
+| `vendor/extensions/node_modules/pi-polish/` | 0.1.14 | https://github.com/Pringled/pi-extensions/tree/main/packages/pi-polish | MIT, 패키지의 LICENSE 보존. `extensions/tools.ts`만 로드하고 pi 내부 UI를 바꾸는 `chrome.ts`는 로드하지 않음. 빌드 때 `powershell`을 `bash`와 같은 셸 명령 행으로 묶고, `edit`·`write` 행에 harness-env의 인코딩 안내(`원래 인코딩 CP949 유지` 등)를 표시하도록 `tools.ts`를 치환(`.github/workflows/offline.yml`의 `prepare_extensions`). `shiki`·`@shikijs/*`(MIT)·`diff`(BSD-3-Clause) 등 전이 의존성도 잠금 파일대로 동봉 |
 | `vendor/extensions/node_modules/pi-tool-repair/` | 0.3.10 | https://github.com/monotykamary/pi-tool-repair | MIT(`package.json`의 `license` 표기). 패키지와 원본 저장소에 LICENSE 파일이 없어 별도 고지 파일은 없음 |
 | `vendor/extensions/node_modules/iconv-lite/` | 0.7.3 | https://github.com/pillarjs/iconv-lite | MIT, 패키지의 LICENSE 보존. CP949 변환표(`encodings/tables/cp949.json`)만 읽어 씀 |
-| `vendor/extensions/node_modules/@juicesharp/rpiv-config/` | 2.15.0 | https://github.com/juicesharp/rpiv-mono/tree/main/packages/rpiv-config | MIT, 패키지의 LICENSE 보존 |
+| `vendor/extensions/node_modules/@juicesharp/rpiv-config/` | 2.16.0 | https://github.com/juicesharp/rpiv-mono/tree/main/packages/rpiv-config | MIT, 패키지의 LICENSE 보존 |
 
 - 전이 의존성까지 버전·npm 원본 URL·SHA512·라이선스 식별자를 `config/extensions/package-lock.json`에 고정합니다. 배포본의 `vendor/extensions/manifest.json`에는 실제로 들어간 Windows x64 파일 목록이 있습니다.
 - 각 npm 패키지의 LICENSE·NOTICE는 원본 그대로 둡니다.
