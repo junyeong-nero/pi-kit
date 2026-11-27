@@ -24,7 +24,7 @@ test('bundled Python starts the Word VBA MCP and reports a missing Word as a too
   try {
     await client.connect(transport);
     const tools = (await client.listTools()).tools.map(tool => tool.name).sort();
-    assert.deepEqual(tools, ['list_documents', 'read_output', 'run_vba']);
+    assert.deepEqual(tools, ['close_document', 'list_documents', 'open_document', 'read_output', 'run_vba']);
     // Word is not installed on the runner: the model must see why, not only "Error executing tool".
     const code = 'Function PiMain() As String\n  PiMain = ActiveDocument.Name\nEnd Function';
     const result = await client.callTool({ name: 'run_vba', arguments: { code } });

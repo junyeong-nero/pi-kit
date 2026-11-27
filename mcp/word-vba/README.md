@@ -2,9 +2,17 @@
 
 Word에서 열어 둔 문서에 에이전트가 쓴 VBA를 실행하는 동봉 MCP 서버입니다. `config/mcp.json`의 서버 이름은 `word_vba`입니다.
 
-- **도구:** `list_documents`(열린 문서 목록), `run_vba`(VBA 실행), `read_output`(긴 결과 이어 읽기). 도구가 적어 모델에 보내는 도구 설명이 짧습니다.
+- **도구:** `list_documents`(열린 문서 목록), `open_document`(파일을 숨겨서 열기), `close_document`(문서 닫기), `run_vba`(VBA 실행), `read_output`(긴 결과 이어 읽기). 도구가 적어 모델에 보내는 도구 설명이 짧습니다.
 - **실행:** pi 내장 MCP 기능이 동봉 Python으로 `python -I -X utf8 -B -m word_vba`를 실행합니다. `python313._pth`가 이 폴더를 모듈 경로에 넣습니다. Word 연결에는 동봉 `pywin32`를 씁니다.
 - **필요 설정:** Word의 파일 → 옵션 → 보안 센터 → 보안 센터 설정 → 매크로 설정에서 "VBA 프로젝트 개체 모델에 안전하게 액세스"를 켜고 Word를 다시 시작합니다. 꺼져 있으면 `run_vba`가 이 안내를 오류로 돌려줍니다. 이 설정은 PC의 다른 프로그램에도 적용되므로 회사 보안 정책을 먼저 확인하세요.
+
+## `open_document`·`close_document` 동작
+
+- `open_document(path, read_only=true)`는 `pywin32`(`win32com`)로 파일을 숨긴 창으로 엽니다. 열 때만 경고 창을 끄고(`DisplayAlerts`), 자동 매크로(`AutoOpen`, `Document_Open`)를 막고(`AutomationSecurity` = 강제 사용 안 함), 변환 확인·인코딩 창을 띄우지 않으며 최근 파일 목록에 넣지 않습니다. 끝나면 두 설정을 원래대로 돌립니다. 암호가 걸린 파일은 암호 창 대신 오류로 끝납니다.
+- Word가 실행 중이면 그 Word에서 숨겨 엽니다. 실행 중이 아니면 `DispatchEx`로 보이지 않는 Word를 새로 띄우고, 다른 도구도 그 Word를 씁니다.
+- 숨긴 문서는 활성 문서가 될 수 없으므로 `run_vba`가 실행하는 동안만 창을 보이게 했다가 다시 숨깁니다. 화면 갱신은 꺼 둡니다. `list_documents`의 `hidden`으로 숨긴 문서를 구분합니다.
+- 숨긴 문서는 화면에서 닫을 수 없으니 `close_document(document, save)`로 닫습니다. 저장하지 않은 변경이 있으면 `save`를 정해야 닫습니다(`true` 저장, `false` 버림). MCP가 띄운 Word는 마지막 문서를 닫을 때 함께 종료합니다.
+- MCP 연결이 끊기면(pi 종료·재연결) `open_document`로 연 문서를 **저장하지 않고** 모두 닫고, MCP가 띄운 Word도 종료합니다. 사용자가 직접 연 문서는 닫지 않습니다. VBA가 실행 중이면 끝날 때까지 최대 30초 기다리고, 그래도 끝나지 않으면 닫지 않고 종료합니다. MCP 프로세스가 강제 종료되면 정리할 기회가 없어 숨은 `WINWORD.EXE`가 남을 수 있습니다.
 
 ## `run_vba` 동작
 

@@ -1,8 +1,10 @@
 import asyncio
 from pathlib import Path
 import sys
+import tempfile
 import threading
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "mcp/word-vba"))
 
@@ -190,6 +192,134 @@ class WordVbaTest(unittest.TestCase):
             self.assertNotIn("previous_run", await _call(lambda: {"output": "ok"}, timeout=1))
 
         asyncio.run(scenario())
+
+
+class FakeWindow:
+    def __init__(self, visible):
+        self.Visible = visible
+
+
+class FakeDocument:
+    def __init__(self, app, path, read_only, visible):
+        self.app, self.FullName, self.Path = app, path, str(Path(path).parent)
+        self.Name, self.ReadOnly, self.Saved, self.saves = Path(path).name, read_only, True, 0
+        self.window = FakeWindow(visible)
+        self.Windows = FakeCollection([self.window])
+
+    def Save(self):
+        self.saves += 1
+        self.Saved = True
+
+    def Close(self, option):
+        self.app.docs.remove(self)
+
+
+class FakeCollection:
+    def __init__(self, items):
+        self.items = items
+
+    @property
+    def Count(self):
+        return len(self.items)
+
+    def __call__(self, index):
+        return self.items[index - 1]
+
+
+class FakeWord:
+    def __init__(self):
+        self.docs, self.opened, self.quit = [], [], False
+        self.DisplayAlerts, self.AutomationSecurity, self.Visible = -1, 1, True
+        self.Documents = FakeCollection(self.docs)
+        self.Documents.Open = self.open
+
+    def open(self, *args):
+        self.opened.append((args, self.DisplayAlerts, self.AutomationSecurity))
+        doc = FakeDocument(self, args[0], args[2], args[11])
+        self.docs.append(doc)
+        return doc
+
+    @property
+    def ActiveDocument(self):
+        import pywintypes
+        visible = [d for d in self.docs if d.window.Visible]
+        if not visible:
+            raise pywintypes.com_error(-2147352567, "no document", None, None)
+        return visible[-1]
+
+    def Quit(self, option):
+        self.quit = True
+
+
+class SilentOpenTest(unittest.TestCase):
+    def setUp(self):
+        import pywintypes
+        import win32com.client
+        self.word = FakeWord()
+        self.addCleanup(setattr, word_vba, "_own_word", None)
+        self.addCleanup(word_vba._opened.clear)
+        not_running = pywintypes.com_error(-2147221021, "Operation unavailable", None, None)
+        self.enterContext(mock.patch.object(win32com.client, "GetActiveObject", side_effect=not_running))
+        self.dispatch = self.enterContext(mock.patch.object(win32com.client, "DispatchEx", return_value=self.word))
+        folder = self.enterContext(tempfile.TemporaryDirectory())
+        self.path = str(Path(folder) / "보고서.docx")
+        Path(self.path).write_bytes(b"")
+
+    def test_opens_hidden_without_prompts_in_a_hidden_word_and_quits_it_after_the_last_close(self):
+        opened = word_vba._open_document(self.path, True)
+        self.assertEqual(opened, {"document": "보고서.docx", "full_name": self.path, "read_only": True,
+                                  "word_started": True})
+        self.assertFalse(self.word.Visible)
+        args, alerts, security = self.word.opened[0]
+        # ConfirmConversions, ReadOnly, AddToRecentFiles, PasswordDocument ... Visible ... NoEncodingDialog
+        self.assertEqual((args[1], args[2], args[3], args[4], args[11], args[14]), (False, True, False, "", False, True))
+        self.assertEqual((alerts, security), (0, 3))
+        self.assertEqual((self.word.DisplayAlerts, self.word.AutomationSecurity), (-1, 1))  # restored
+        self.assertEqual(word_vba._open_document(self.path, True)["note"], "이미 열려 있는 문서입니다")
+        self.assertEqual(len(self.word.opened), 1)
+        listed = word_vba._list_documents()["documents"]
+        self.assertEqual([(d["name"], d["active"], d["hidden"]) for d in listed], [("보고서.docx", False, True)])
+        with self.assertRaisesRegex(ValueError, "숨겨 연 문서만"):
+            word_vba._target(self.word, None)
+        self.assertEqual(word_vba._close_document("보고서.docx", None), {"closed": "보고서.docx", "word_quit": True})
+        self.assertTrue(self.word.quit)
+        self.assertIsNone(word_vba._own_word)
+
+    def test_close_never_drops_unsaved_changes_silently(self):
+        word_vba._open_document(self.path, False)
+        doc = self.word.docs[0]
+        doc.Saved = False
+        with self.assertRaisesRegex(ValueError, "save=true"):
+            word_vba._close_document(self.path, None)
+        doc.ReadOnly = True
+        with self.assertRaisesRegex(ValueError, "읽기 전용"):
+            word_vba._close_document(self.path, True)
+        doc.ReadOnly = False
+        word_vba._close_document(self.path, True)
+        self.assertEqual(doc.saves, 1)
+
+    def test_disconnect_closes_only_silently_opened_documents_without_saving(self):
+        word_vba._open_document(self.path, False)
+        self.word.docs[0].Saved = False  # changed by run_vba: discarded
+        users = FakeDocument(self.word, str(Path(self.path).with_name("사용자.docx")), False, True)
+        self.word.docs.append(users)
+        word_vba._close_opened()
+        self.assertEqual(self.word.docs, [users])
+        self.assertFalse(self.word.quit)  # still holds a document the user opened
+        self.assertEqual(word_vba._opened, set())
+
+        word_vba._own_word = self.word
+        self.word.docs.remove(users)
+        word_vba._open_document(self.path, True)
+        word_vba.close_opened_on_exit()
+        self.assertEqual((self.word.docs, self.word.quit, word_vba._own_word), ([], True, None))
+
+    def test_missing_file_and_missing_word(self):
+        with self.assertRaisesRegex(ValueError, "파일이 없습니다"):
+            word_vba._open_document(self.path + ".none", True)
+        with self.assertRaisesRegex(ValueError, "open_document"):
+            word_vba._list_documents()
+        self.dispatch.assert_not_called()
 
 
 if __name__ == "__main__":

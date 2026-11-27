@@ -40,7 +40,7 @@
     "word_vba": {
       "command": "python",
       "args": ["-I", "-X", "utf8", "-B", "-m", "word_vba"],
-      "description": "Microsoft Word: 사용자가 Word에서 열어 둔 문서(DRM 문서 포함)에 에이전트가 쓴 VBA를 실행해 읽기·검색·편집·필드 갱신(F9)·목차·하이퍼링크 등 Word 개체 모델 전체를 다룹니다. 사용자가 먼저 Word로 문서를 열어야 함. 실행은 사용자 승인 후",
+      "description": "Microsoft Word: 사용자가 Word에서 열어 둔 문서(DRM 문서 포함)나 open_document로 숨겨 연 파일에 에이전트가 쓴 VBA를 실행해 읽기·검색·편집·필드 갱신(F9)·목차·하이퍼링크 등 Word 개체 모델 전체를 다룹니다. 실행은 사용자 승인 후",
       "exposure": "deferred",
       "timeout": 600
     }
